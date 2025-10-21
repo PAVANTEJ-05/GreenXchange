@@ -1,29 +1,25 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-/// @title GreenXchangeOrderbook
-/// @notice On-chain limit orderbook DEX for trading Green Credits (ERC1155 tokenId) against PYUSD (ERC20)
-/// - Orders are limit orders: price is in PYUSD smallest unit (depends on pyusdDecimals)
-/// - Order struct contains id, maker, tokenId, isBuyOrder, price, amount, filledAmount, timestamp, expiration
-/// - Escrows PYUSD or credit tokens when orders created
-/// - Matching engine: simple price-time priority scanning of active price levels
-/// - Fee logic: basis points, split between platform and referrer
-/// - ReentrancyGuard and Pausable
-///
-/// Tradeoffs:
-/// - On-chain full orderbook ordering & price-level sorting is gas-heavy. For production, prefer off-chain matching and on-chain settlement.
-import "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import "openzeppelin-contracts-upgradeable/contracts/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/contracts/security/PausableUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/contracts/access/AccessControlUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/contracts/proxy/utils/UUPSUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/contracts/proxy/utils/Initializable.sol";
-import "openzeppelin-contracts/security/ReentrancyGuard.sol";
-import "./GreenCreditERC1155.sol";
-import "./interfaces/IPYUSDPermit.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 
-contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, PausableUpgradeable, UUPSUpgradeable, ReentrancyGuard {
+import "./GreenCreditToken.sol";
+
+contract GreenXchangeOrderbook is
+    Initializable,
+    AccessControlUpgradeable,
+    PausableUpgradeable,
+    UUPSUpgradeable,
+    ReentrancyGuardUpgradeable,
+    IERC1155ReceiverUpgradeable
+{
     using SafeERC20 for IERC20;
 
     bytes32 public constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
@@ -35,105 +31,147 @@ contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, Pausa
         uint256 tokenId;
         bool isBuy; // true = buy (maker locks PYUSD), false = sell (maker locks credits)
         uint256 price; // price per credit in PYUSD smallest unit
-        uint256 amount; // total amount of credits (units in token decimals)
-        uint256 filled; // amount already filled
+        uint256 amount; // total credits
+        uint256 filled; // filled amount
         uint256 timestamp;
         uint256 expiration; // 0 = no expiration
-        uint256 minAmountOut; // slippage tolerance: min amount buyer expects after fills
+        uint256 minAmountOut; // slippage tolerance
         address referrer; // optional fee recipient
     }
 
-    GreenCreditERC1155 public credits;
+    GreenCreditToken public credits;
     IERC20 public pyusd;
     uint8 public pyusdDecimals;
 
-    // fee: basis points (bps). e.g., 100 = 1%
     uint256 public platformFeeBps;
     address public platformFeeRecipient;
     uint256 public constant BPS_DENOM = 10000;
 
-    // order storage
     uint256 public nextOrderId;
-    mapping(uint256 => Order) public orders; // orderId => Order
-    mapping(uint256 => bool) public orderActive; // active
-    // bookkeeping for escrow
-    mapping(uint256 => uint256) public escrowedPYUSDByOrder; // orderId -> pyusd amount
-    mapping(uint256 => uint256) public escrowedCreditsByOrder; // orderId -> credits amount
+    mapping(uint256 => Order) public orders;
+    mapping(uint256 => bool) public orderActive;
 
-    // price levels per tokenId: For simplicity we keep an array of active prices per tokenId.
-    // Tradeoff: scanning linear arrays is gas heavy — acceptable for prototype.
+    // escrow bookkeeping
+    mapping(uint256 => uint256) public escrowedPYUSDByOrder;
+    mapping(uint256 => uint256) public escrowedCreditsByOrder;
+
+    // price levels / order book indices (naive arrays for prototype)
     mapping(uint256 => uint256[]) public activePricesPerToken; // tokenId => prices
     mapping(uint256 => mapping(uint256 => uint256[])) public ordersAtPrice; // tokenId => price => orderIds
 
-    // escrow balances per user (safety tracking)
-    mapping(address => uint256) public pyusdEscrowed; // total PYUSD escrowed by user
+    // per-user escrow tracking
+    mapping(address => uint256) public pyusdEscrowed;
     mapping(address => mapping(uint256 => uint256)) public creditsEscrowed; // user => tokenId => amount
 
-    // events
-    event OrderPlaced(uint256 indexed orderId, address indexed maker, uint256 tokenId, bool isBuy, uint256 price, uint256 amount, uint256 expiration, address referrer);
+    // Sepolia PYUSD default (if initializer passed address(0))
+    address public constant SEPOLIA_PYUSD = 0xCaC524BcA292aaade2DF8A05cC58F0a65B1B3bB9;
+
+    // Events
+    event OrderPlaced(
+        uint256 indexed orderId,
+        address indexed maker,
+        uint256 tokenId,
+        bool isBuy,
+        uint256 price,
+        uint256 amount,
+        uint256 expiration,
+        address referrer
+    );
     event OrderCancelled(uint256 indexed orderId, address indexed maker);
-    event OrderMatched(uint256 indexed orderIdMaker, uint256 indexed orderIdTaker, address maker, address taker, uint256 tokenId, uint256 price, uint256 amount, uint256 platformFee, uint256 referrerFee);
-    event FeesCollected(uint256 indexed orderId, uint256 platformFee, uint256 referrerFee, address referrer);
+    event OrderMatched(
+        uint256 indexed orderIdMaker,
+        uint256 indexed orderIdTaker,
+        address maker,
+        address taker,
+        uint256 tokenId,
+        uint256 price,
+        uint256 amount,
+        uint256 platformFee,
+        uint256 referrerFee
+    );
     event PYUSDEscrowed(uint256 indexed orderId, address indexed maker, uint256 amount);
     event CreditsEscrowed(uint256 indexed orderId, address indexed maker, uint256 tokenId, uint256 amount);
+    event PYUSDWithdrawn(address indexed to, uint256 amount);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    function initialize(address admin, address creditsAddress, address pyusdAddress, uint8 _pyusdDecimals, address feeRecipient, uint256 feeBps) public initializer {
-        __AccessControl_init();
-        __Pausable_init();
-        __UUPSUpgradeable_init();
+    /// @notice Initialize the Orderbook
+    /// @param admin admin address (granted DEFAULT_ADMIN, MANAGER, UPGRADER)
+    /// @param creditsAddress address of deployed GreenCreditToken (ERC1155)
+    /// @param pyusdAddress address of PYUSD ERC20 (pass address(0) to default to Sepolia testnet PYUSD)
+    /// @param _pyusdDecimals decimals for PYUSD (e.g., 6)
+    /// @param feeRecipient platform fee recipient
+    /// @param feeBps platform fee in bps (e.g., 100 = 1%)
+    function initialize(
+        address admin,
+        address payable creditsAddress,
+        address pyusdAddress,
+        uint8 _pyusdDecimals,
+        address feeRecipient,
+        uint256 feeBps
+    ) public initializer {
+    __AccessControl_init();
+    __Pausable_init();
+    __UUPSUpgradeable_init();
+    __ReentrancyGuard_init();
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
         _grantRole(MANAGER_ROLE, admin);
         _grantRole(UPGRADER_ROLE, admin);
 
-        credits = GreenCreditERC1155(creditsAddress);
+        require(creditsAddress != address(0), "credits addr 0");
+       credits = GreenCreditToken(payable(creditsAddress));
+
+
+
+        if (pyusdAddress == address(0)) pyusdAddress = SEPOLIA_PYUSD;
         pyusd = IERC20(pyusdAddress);
         pyusdDecimals = _pyusdDecimals;
+
         platformFeeRecipient = feeRecipient;
         platformFeeBps = feeBps;
 
         nextOrderId = 1;
     }
 
-    function _authorizeUpgrade(address newImpl) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(address) internal override onlyRole(UPGRADER_ROLE) {}
 
     // -------------------------
-    // Admin functions
+    // Admin
     // -------------------------
     function setPlatformFee(uint256 bps) external onlyRole(MANAGER_ROLE) {
-        require(bps <= 2000, "Fee too high"); // 20% cap
+        require(bps <= 2000, "Fee too high");
         platformFeeBps = bps;
     }
 
     function setPlatformFeeRecipient(address recipient) external onlyRole(MANAGER_ROLE) {
+        require(recipient != address(0), "zero recipient");
         platformFeeRecipient = recipient;
     }
 
     function setPYUSD(address tokenAddr, uint8 decimals_) external onlyRole(MANAGER_ROLE) {
+        require(tokenAddr != address(0), "zero addr");
         pyusd = IERC20(tokenAddr);
         pyusdDecimals = decimals_;
     }
 
-    // -------------------------
-    // Place orders
-    // -------------------------
+    /// @notice Withdraw accumulated PYUSD from the contract (fees etc.)
+    function withdrawPYUSD(address to, uint256 amount) external onlyRole(MANAGER_ROLE) {
+        require(to != address(0), "zero to");
+        uint256 bal = pyusd.balanceOf(address(this));
+        require(amount <= bal, "insufficient balance");
+        pyusd.safeTransfer(to, amount);
+        emit PYUSDWithdrawn(to, amount);
+    }
 
-    /**
-     * @notice Place a limit order (buy or sell)
-     * @param tokenId token id of credits
-     * @param isBuy true => buy credits (lock PYUSD), false => sell credits (lock credits)
-     * @param price price per credit in PYUSD smallest unit (depends on pyusdDecimals)
-     * @param amount amount of credits
-     * @param expiration unix timestamp (0 for none)
-     * @param minAmountOut optional slippage min amount for buyers (0 if not used)
-     * @param referrer optional referrer address for fee split
-     * @param permitData optional permit bytes to call on pyusd (owner, spender, value, deadline, v,r,s) encoded if available
-     */
+    // -------------------------
+    // Place Orders
+    // -------------------------
+    /// @notice Place a limit order (buy or sell)
+    /// - For sell orders, the user must have approved this contract (setApprovalForAll)
     function placeOrder(
         uint256 tokenId,
         bool isBuy,
@@ -141,11 +179,16 @@ contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, Pausa
         uint256 amount,
         uint256 expiration,
         uint256 minAmountOut,
-        address referrer,
-        bytes calldata permitData
+        address referrer
     ) external whenNotPaused nonReentrant {
         require(amount > 0, "amount>0");
         require(price > 0, "price>0");
+
+        if (!isBuy) {
+            // require user owns credits and has approved this contract
+            require(credits.balanceOf(msg.sender, tokenId) >= amount, "insufficient credits");
+            require(credits.isApprovedForAll(msg.sender, address(this)), "approve orderbook");
+        }
 
         uint256 orderId = nextOrderId++;
         Order storage o = orders[orderId];
@@ -163,32 +206,22 @@ contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, Pausa
 
         orderActive[orderId] = true;
 
-        // escrow funds
         if (isBuy) {
-            // total cost = price * amount (in smallest pyusd unit)
-            uint256 cost = _mulDiv(price, amount);
-            // attempt permit if provided (EIP-2612)
-            if (permitData.length >= 32) {
-                // low-level attempt to call permit; ignore revert and fallback to transferFrom
-                // we expect permitData to be abi.encode(owner, spender, value, deadline, v, r, s)
-                // However since ABI can't check arbitrary, we simply forward call to permit on pyusd via low-level if it exists.
-                _tryPermit(permitData);
-            }
-            // transferFrom maker -> this
+            uint256 cost = _mulSafe(price, amount);
+            // pull PYUSD from maker
             pyusd.safeTransferFrom(msg.sender, address(this), cost);
             escrowedPYUSDByOrder[orderId] = cost;
             pyusdEscrowed[msg.sender] += cost;
             emit PYUSDEscrowed(orderId, msg.sender, cost);
         } else {
-            // sell: maker must transfer credits to escrow
-            // transfer via safeTransferFrom
+            // transfer credits to this contract (escrow)
             credits.safeTransferFrom(msg.sender, address(this), tokenId, amount, "");
             escrowedCreditsByOrder[orderId] = amount;
             creditsEscrowed[msg.sender][tokenId] += amount;
             emit CreditsEscrowed(orderId, msg.sender, tokenId, amount);
         }
 
-        // store order in ordersAtPrice
+        // add to price level
         if (!_priceExists(tokenId, price)) {
             activePricesPerToken[tokenId].push(price);
         }
@@ -196,28 +229,27 @@ contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, Pausa
 
         emit OrderPlaced(orderId, msg.sender, tokenId, isBuy, price, amount, expiration, referrer);
     }
+function supportsInterface(bytes4 interfaceId)
+    public
+    view
+    override(AccessControlUpgradeable, IERC165Upgradeable)
+    returns (bool)
+{
+    return super.supportsInterface(interfaceId);
+}
 
-    // Helper: try to call permit on pyusd (non-reverting attempt)
-    function _tryPermit(bytes calldata permitData) internal {
-        (bool success, ) = address(pyusd).call(permitData);
-        // ignore success flag; if fail, we continue and expect approve+transferFrom
-        // for production better to decode and call specific permit signature for safety
-    }
 
     // -------------------------
-    // Cancel orders
+    // Cancel Orders
     // -------------------------
-
-    /// @notice Cancel an active order. Only maker or manager can cancel.
     function cancelOrder(uint256 orderId) external nonReentrant {
-        require(orderActive[orderId], "Not active");
+        require(orderActive[orderId], "not active");
         Order storage o = orders[orderId];
-        require(msg.sender == o.maker || hasRole(MANAGER_ROLE, msg.sender), "Not allowed to cancel");
-        require(o.filled < o.amount, "Already filled");
+        require(msg.sender == o.maker || hasRole(MANAGER_ROLE, msg.sender), "not allowed");
+        require(o.filled < o.amount, "already filled");
 
         orderActive[orderId] = false;
 
-        // return escrow
         if (o.isBuy) {
             uint256 locked = escrowedPYUSDByOrder[orderId];
             if (locked > 0) {
@@ -230,144 +262,151 @@ contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, Pausa
             if (locked > 0) {
                 escrowedCreditsByOrder[orderId] = 0;
                 creditsEscrowed[o.maker][o.tokenId] -= locked;
+                // send credits back to maker
                 credits.safeTransferFrom(address(this), o.maker, o.tokenId, locked, "");
-                // Note: safeTransferFrom here uses credits contract's safeTransferFrom; however
-                // some ERC1155 implementations require receiver checks. Since the contract is approved, this works.
             }
         }
+
+        // remove from ordersAtPrice (cleanup)
+        _removeOrderFromBook(o.tokenId, o.price, orderId);
 
         emit OrderCancelled(orderId, o.maker);
     }
 
     // -------------------------
-    // Matching - Taker fills maker order(s)
+    // Fill Orders (taker fills maker's order)
     // -------------------------
-
-    /// @notice Fill an order by specifying orderId and desired amount to fill
-    /// @param orderId maker orderId to be filled
-    /// @param fillAmount amount of credits to fill (<= remaining)
     function fillOrder(uint256 orderId, uint256 fillAmount) external whenNotPaused nonReentrant {
-        require(orderActive[orderId], "order not active");
-        require(fillAmount > 0, "fillAmount>0");
+        require(orderActive[orderId], "not active");
+        require(fillAmount > 0, "fill>0");
         Order storage makerOrder = orders[orderId];
-        require(block.timestamp <= makerOrder.expiration || makerOrder.expiration == 0, "order expired");
+        require(makerOrder.expiration == 0 || block.timestamp <= makerOrder.expiration, "expired");
         uint256 remaining = makerOrder.amount - makerOrder.filled;
         require(remaining >= fillAmount, "fill > remaining");
 
-        // determine taker is buyer or seller opposite role
         if (makerOrder.isBuy) {
-            // maker wanted to BUY credits; taker is a seller, must transfer credits to maker and receive PYUSD
+            // maker wants to buy credits -> taker sells credits
             _executeMatchSell(makerOrder, orderId, fillAmount);
         } else {
-            // maker is SELL: taker is a buyer, must provide PYUSD
+            // maker wants to sell credits -> taker buys (must pay PYUSD)
             _executeMatchBuy(makerOrder, orderId, fillAmount);
+        }
+
+        // if fully filled, cleanup order from book
+        if (makerOrder.filled >= makerOrder.amount) {
+            orderActive[orderId] = false;
+            _removeOrderFromBook(makerOrder.tokenId, makerOrder.price, orderId);
         }
     }
 
-    // Internal: maker.isBuy == true -> maker locked PYUSD; taker sells credits
+    // maker.isBuy == true -> maker locked PYUSD; taker sells credits
     function _executeMatchSell(Order storage makerOrder, uint256 makerOrderId, uint256 fillAmount) internal {
-        // Taker (msg.sender) must transfer credits to maker
         uint256 tokenId = makerOrder.tokenId;
-        // Transfer credits from taker -> maker
+
+        // taker (msg.sender) must transfer credits to maker
         credits.safeTransferFrom(msg.sender, makerOrder.maker, tokenId, fillAmount, "");
-        // Transfer PYUSD from escrowed maker funds to taker minus fees
-        uint256 tradeValue = _mulDiv(makerOrder.price, fillAmount);
-        // compute fees
+
+        // settle PYUSD from escrowed maker funds
+        uint256 tradeValue = _mulSafe(makerOrder.price, fillAmount);
         uint256 platformFee = (tradeValue * platformFeeBps) / BPS_DENOM;
         uint256 referrerFee = 0;
-        if (makerOrder.referrer != address(0)) {
-            // split referrer 10% of platform fee (example)
+        if (makerOrder.referrer != address(0) && platformFee > 0) {
+            // give 10% of platform fee to referrer (example split)
             referrerFee = (platformFee * 10) / 100;
-            platformFee = platformFee - referrerFee;
+            platformFee -= referrerFee;
             pyusd.safeTransfer(makerOrder.referrer, referrerFee);
         }
+
         uint256 netToTaker = tradeValue - platformFee - referrerFee;
 
-        // bookkeeping and transfers
-        escrowedPYUSDByOrder[makerOrderId] -= _mulDiv(makerOrder.price, fillAmount);
-        pyusdEscrowed[makerOrder.maker] -= _mulDiv(makerOrder.price, fillAmount);
+        // bookkeeping
+        escrowedPYUSDByOrder[makerOrderId] -= tradeValue;
+        pyusdEscrowed[makerOrder.maker] -= tradeValue;
 
-        // send net to taker
+        // pay taker and platform
         pyusd.safeTransfer(msg.sender, netToTaker);
-        // send platform fee to recipient
-        if (platformFee > 0) {
-            pyusd.safeTransfer(platformFeeRecipient, platformFee);
-        }
+        if (platformFee > 0) pyusd.safeTransfer(platformFeeRecipient, platformFee);
 
-        // update filled
+        // mark filled
         makerOrder.filled += fillAmount;
 
         emit OrderMatched(makerOrderId, 0, makerOrder.maker, msg.sender, tokenId, makerOrder.price, fillAmount, platformFee, referrerFee);
-
-        // if fully filled, mark inactive
-        if (makerOrder.filled >= makerOrder.amount) {
-            orderActive[makerOrderId] = false;
-        }
     }
 
-    // Internal: maker.isBuy == false -> maker locked credits; taker must provide PYUSD
+    // maker.isBuy == false -> maker locked credits; taker buys with PYUSD
     function _executeMatchBuy(Order storage makerOrder, uint256 makerOrderId, uint256 fillAmount) internal {
         uint256 tokenId = makerOrder.tokenId;
-        // taker must transfer PYUSD to contract first
-        uint256 tradeValue = _mulDiv(makerOrder.price, fillAmount);
 
-        // attempt to transferFrom taker -> contract
+        uint256 tradeValue = _mulSafe(makerOrder.price, fillAmount);
+
+        // taker must send PYUSD to contract
         pyusd.safeTransferFrom(msg.sender, address(this), tradeValue);
 
-        // compute fees
         uint256 platformFee = (tradeValue * platformFeeBps) / BPS_DENOM;
         uint256 referrerFee = 0;
-        if (makerOrder.referrer != address(0)) {
+        if (makerOrder.referrer != address(0) && platformFee > 0) {
             referrerFee = (platformFee * 10) / 100;
-            platformFee = platformFee - referrerFee;
+            platformFee -= referrerFee;
             pyusd.safeTransfer(makerOrder.referrer, referrerFee);
         }
 
         uint256 netToMaker = tradeValue - platformFee - referrerFee;
 
-        // transfer credits from escrow to taker (buyer)
-        // maker had escrowed credits in escrowedCreditsByOrder
+        // transfer credits from escrow to taker
         escrowedCreditsByOrder[makerOrderId] -= fillAmount;
         creditsEscrowed[makerOrder.maker][tokenId] -= fillAmount;
         credits.safeTransferFrom(address(this), msg.sender, tokenId, fillAmount, "");
 
-        // transfer net to maker
+        // transfer PYUSD to maker and platform
         pyusd.safeTransfer(makerOrder.maker, netToMaker);
+        if (platformFee > 0) pyusd.safeTransfer(platformFeeRecipient, platformFee);
 
-        // platform fee to recipient
-        if (platformFee > 0) {
-            pyusd.safeTransfer(platformFeeRecipient, platformFee);
-        }
-
-        // update filled
         makerOrder.filled += fillAmount;
 
         emit OrderMatched(makerOrderId, 0, makerOrder.maker, msg.sender, tokenId, makerOrder.price, fillAmount, platformFee, referrerFee);
-
-        if (makerOrder.filled >= makerOrder.amount) {
-            orderActive[makerOrderId] = false;
-        }
     }
 
     // -------------------------
-    // Helpers
+    // Internal helpers
     // -------------------------
-
-    // naive multiplication: price * amount (both uint256) - we assume amounts reasonably small to avoid overflow.
-    function _mulDiv(uint256 a, uint256 b) internal pure returns (uint256) {
+    function _mulSafe(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0 || b == 0) return 0;
+        require(a <= type(uint256).max / b, "mul overflow");
         return a * b;
     }
 
     function _priceExists(uint256 tokenId, uint256 price) internal view returns (bool) {
         uint256[] storage arr = activePricesPerToken[tokenId];
-        for (uint256 i = 0; i < arr.length; i++) {
+        for (uint256 i = 0; i < arr.length; ++i) {
             if (arr[i] == price) return true;
         }
         return false;
     }
 
+    function _removeOrderFromBook(uint256 tokenId, uint256 price, uint256 orderId) internal {
+        uint256[] storage arr = ordersAtPrice[tokenId][price];
+        for (uint256 i = 0; i < arr.length; ++i) {
+            if (arr[i] == orderId) {
+                arr[i] = arr[arr.length - 1];
+                arr.pop();
+                break;
+            }
+        }
+        // if no orders left at this price, remove the price level
+        if (arr.length == 0) {
+            uint256[] storage prices = activePricesPerToken[tokenId];
+            for (uint256 i = 0; i < prices.length; ++i) {
+                if (prices[i] == price) {
+                    prices[i] = prices[prices.length - 1];
+                    prices.pop();
+                    break;
+                }
+            }
+        }
+    }
+
     // -------------------------
-    // Emergency
+    // Pause / Unpause
     // -------------------------
     function pause() external onlyRole(MANAGER_ROLE) {
         _pause();
@@ -378,13 +417,16 @@ contract GreenXchangeOrderbook is Initializable, AccessControlUpgradeable, Pausa
     }
 
     // -------------------------
-    // Receiver hook for ERC1155
+    // ERC1155 Receiver
     // -------------------------
-    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure returns (bytes4) {
+    function onERC1155Received(address, address, uint256, uint256, bytes calldata) external pure override returns (bytes4) {
         return this.onERC1155Received.selector;
     }
 
-    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) external pure returns (bytes4) {
+    function onERC1155BatchReceived(address, address, uint256[] calldata, uint256[] calldata, bytes calldata) external pure override returns (bytes4) {
         return this.onERC1155BatchReceived.selector;
     }
+
+    // gap for upgrade safety
+    uint256[50] private __gap;
 }
