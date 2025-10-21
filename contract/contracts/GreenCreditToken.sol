@@ -15,7 +15,7 @@ contract GreenCreditToken is ERC1155, Ownable {
         CreditType creditType;     
         string projectTitle;       
         string location;           
-        string certificateHash;    npm install 
+        string certificateHash;  
         bool exists;               
         bool revoked;              
     }
@@ -162,12 +162,10 @@ contract GreenCreditToken is ERC1155, Ownable {
         emit BaseURIUpdated(_baseURI, newURI);
         _baseURI = newURI;
     }
-
-    function uri(uint256 tokenId) public view override returns (string memory) {
-        require(creditData[tokenId].exists, "Token does not exist");
-        return string(abi.encodePacked(_baseURI, tokenId.toString(), ".json"));
-    }
-
+function uri(uint256 tokenId) public view override returns (string memory) {
+    require(creditData[tokenId].exists, "Token does not exist");
+    return string(abi.encodePacked(_baseURI, Strings.toString(tokenId), ".json"));
+}
     // -------------------------
     // Read helpers
     // -------------------------
