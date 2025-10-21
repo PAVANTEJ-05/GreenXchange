@@ -6,30 +6,31 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 
 /// @title GreenCreditToken
-/// @notice ERC-1155 token contract for tokenized green credits with approval-based minting and revocation.
+/// @notice ERC-1155 token contract for tokenized green credits with approval-based minting, freezing, and retirement.
 contract GreenCreditToken is ERC1155, Ownable {
 
     enum CreditType { Green, Carbon, Water, Renewable }
 
     struct CreditInfo {
-        CreditType creditType;     
-        string projectTitle;       
-        string location;           
-        string certificateHash;  
-        bool exists;               
-        bool revoked;              
+        CreditType creditType;
+        string projectTitle;
+        string location;
+        string certificateHash;
+        bool exists;
+        bool revoked;
     }
 
     struct MintApproval {
-        uint256 amount;            
-        uint256 expiry;            
+        uint256 amount;
+        uint256 expiry;
     }
 
     // Storage
-    mapping(uint256 => CreditInfo) private creditData;                  
-    mapping(address => mapping(uint256 => MintApproval)) public approvedMints; 
-    mapping(address => mapping(uint256 => bool)) public tokenFrozen;    
-    mapping(uint256 => uint256) public totalSupply;                     
+    mapping(uint256 => CreditInfo) private creditData;
+    mapping(address => mapping(uint256 => MintApproval)) public approvedMints;
+    mapping(address => mapping(uint256 => bool)) public tokenFrozen;
+    mapping(uint256 => uint256) public totalSupply;
+    mapping(uint256 => uint256) public totalRetired;
 
     string private _baseURI;
 
@@ -42,9 +43,10 @@ contract GreenCreditToken is ERC1155, Ownable {
     event TokensFrozen(address indexed user, uint256 indexed tokenId);
     event TokensUnfrozen(address indexed user, uint256 indexed tokenId);
     event BaseURIUpdated(string oldURI, string newURI);
+    event TokenRetired(address indexed user, uint256 indexed tokenId, uint256 amount, string reason);
 
-    // Constructor
-    constructor(string memory baseURI_) ERC1155(baseURI_) Ownable(msg.sender) {
+    // Constructor (OZ v5 needs initialOwner)
+    constructor(string memory baseURI_, address initialOwner) ERC1155(baseURI_) Ownable(initialOwner) {
         _baseURI = baseURI_;
     }
 
@@ -93,7 +95,7 @@ contract GreenCreditToken is ERC1155, Ownable {
     function approveMint(address user, uint256 tokenId, uint256 amount, uint256 expiryTimestamp) external onlyOwner {
         require(user != address(0), "Invalid user address");
         require(creditData[tokenId].exists, "Token ID does not exist");
-        require(!creditData[tokenId].revoked, "Credit is revoked");
+        require(!creditData[tokenId].revoked, "Credit revoked");
         require(amount > 0, "Amount must be > 0");
         require(expiryTimestamp > block.timestamp, "Expiry must be future");
 
@@ -106,7 +108,7 @@ contract GreenCreditToken is ERC1155, Ownable {
     }
 
     function revokeMintApproval(address user, uint256 tokenId) external onlyOwner {
-        require(approvedMints[user][tokenId].amount > 0, "No approval exists");
+        require(approvedMints[user][tokenId].amount > 0 || approvedMints[user][tokenId].expiry > 0, "No approval exists");
         approvedMints[user][tokenId].amount = 0;
         approvedMints[user][tokenId].expiry = 0;
         emit MintApprovalRevoked(user, tokenId);
@@ -118,26 +120,47 @@ contract GreenCreditToken is ERC1155, Ownable {
     function mintApprovedToken(uint256 tokenId, uint256 amount) external {
         CreditInfo storage credit = creditData[tokenId];
         require(credit.exists, "Credit does not exist");
-        require(!credit.revoked, "Credit is revoked");
+        require(!credit.revoked, "Credit revoked");
         require(!tokenFrozen[msg.sender][tokenId], "Token frozen for user");
+        require(amount > 0, "Amount must be > 0");
 
         MintApproval storage approval = approvedMints[msg.sender][tokenId];
         require(approval.amount > 0, "No mint approval");
         require(block.timestamp <= approval.expiry, "Approval expired");
-        require(amount > 0 && amount <= approval.amount, "Amount exceeds approved");
+        require(amount <= approval.amount, "Amount exceeds approved");
 
         _mint(msg.sender, tokenId, amount, "");
         totalSupply[tokenId] += amount;
 
-        // Clear approval safely
-        approval.amount = 0;
-        approval.expiry = 0;
+        approval.amount -= amount;
+        if (approval.amount == 0) approval.expiry = 0;
 
         emit TokenMinted(msg.sender, tokenId, amount);
     }
 
     // -------------------------
-    // Revocation and Freezing
+    // Retire / Burn
+    // -------------------------
+    function retire(uint256 tokenId, uint256 amount, string calldata reason) external {
+        require(amount > 0, "Invalid amount");
+        require(balanceOf(msg.sender, tokenId) >= amount, "Insufficient balance");
+        require(!creditData[tokenId].revoked, "Credit revoked");
+        require(!tokenFrozen[msg.sender][tokenId], "Token frozen");
+
+        _burn(msg.sender, tokenId, amount);
+
+        if (totalSupply[tokenId] >= amount) {
+            totalSupply[tokenId] -= amount;
+        } else {
+            totalSupply[tokenId] = 0;
+        }
+        totalRetired[tokenId] += amount;
+
+        emit TokenRetired(msg.sender, tokenId, amount, reason);
+    }
+
+    // -------------------------
+    // Revocation & Freezing
     // -------------------------
     function revokeCredit(uint256 tokenId) external onlyOwner {
         require(creditData[tokenId].exists, "Credit does not exist");
@@ -156,16 +179,18 @@ contract GreenCreditToken is ERC1155, Ownable {
     }
 
     // -------------------------
-    // Base URI Management
+    // Base URI
     // -------------------------
     function setBaseURI(string memory newURI) external onlyOwner {
         emit BaseURIUpdated(_baseURI, newURI);
         _baseURI = newURI;
     }
-function uri(uint256 tokenId) public view override returns (string memory) {
-    require(creditData[tokenId].exists, "Token does not exist");
-    return string(abi.encodePacked(_baseURI, Strings.toString(tokenId), ".json"));
-}
+
+    function uri(uint256 tokenId) public view override returns (string memory) {
+        require(creditData[tokenId].exists, "Token does not exist");
+        return string(abi.encodePacked(_baseURI, Strings.toString(tokenId), ".json"));
+    }
+
     // -------------------------
     // Read helpers
     // -------------------------
@@ -179,10 +204,24 @@ function uri(uint256 tokenId) public view override returns (string memory) {
     }
 
     // -------------------------
-    // ERC1155 Overrides
+    // ERC1155 _update Hook (OZ v5)
     // -------------------------
-    function supportsInterface(bytes4 interfaceId) public view virtual override returns (bool) {
-        return super.supportsInterface(interfaceId);
+    function _update(
+        address from,
+        address to,
+        uint256[] memory ids,
+        uint256[] memory values
+    ) internal virtual override {
+        // Run parent logic
+        super._update(from, to, ids, values);
+
+        if (from == address(0) || to == address(0)) return; // mint/burn allowed
+
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 tokenId = ids[i];
+            require(!creditData[tokenId].revoked, "GreenX: Credit revoked");
+            require(!tokenFrozen[from][tokenId], "GreenX: Sender token frozen");
+        }
     }
 
     // -------------------------
@@ -190,5 +229,9 @@ function uri(uint256 tokenId) public view override returns (string memory) {
     // -------------------------
     receive() external payable {
         revert("Contract does not accept ETH");
+    }
+
+    fallback() external payable {
+        revert("Unsupported call");
     }
 }
