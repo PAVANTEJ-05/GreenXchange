@@ -1,0 +1,281 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ZOI Exact Color Palette */
+:root {
+  --zoi-bg: #000814;
+  --zoi-bg-light: #001220;
+  --zoi-teal: #00ff88;
+  --zoi-teal-light: #80ffc2;
+  --zoi-blue: #3b82f6;
+  --zoi-purple: #8b5cf6;
+  --zoi-cyan: #06b6d4;
+  --zoi-white: #ffffff;
+  --zoi-gray: #a0a0a0;
+  --zoi-gray-light: #d1d1d1;
+}
+
+/* Base Reset - NO BACKGROUND */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  overflow-x: hidden;
+  /* NO background colors here - handled by LayoutWrapper */
+}
+
+/* ZOI Exact Typography */
+.zoi-hero-title {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(4rem, 12vw, 12rem);
+  font-weight: 600;
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+  color: var(--zoi-white);
+}
+
+.zoi-section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--zoi-white);
+}
+
+.zoi-body-large {
+  font-family: 'Inter', sans-serif;
+  font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--zoi-gray-light);
+}
+
+.zoi-body {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+  color: var(--zoi-gray-light);
+}
+
+.zoi-caption {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  color: var(--zoi-gray);
+}
+
+/* ZOI Gradient Text */
+.zoi-gradient-teal {
+  background: linear-gradient(135deg, var(--zoi-teal) 0%, var(--zoi-teal-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.zoi-gradient-multi {
+  background: linear-gradient(135deg, 
+    var(--zoi-teal) 0%, 
+    var(--zoi-blue) 25%, 
+    var(--zoi-purple) 50%, 
+    var(--zoi-cyan) 75%, 
+    var(--zoi-teal-light) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ZOI Button Styles */
+.zoi-button {
+  background: transparent;
+  border: 1px solid var(--zoi-white);
+  color: var(--zoi-white);
+  padding: 18px 36px;
+  border-radius: 0px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  cursor: pointer;
+}
+
+.zoi-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transition: left 0.6s ease;
+}
+
+.zoi-button:hover::before {
+  left: 100%;
+}
+
+.zoi-button:hover {
+  background: var(--zoi-white);
+  color: var(--zoi-bg);
+  transform: translateY(-2px);
+}
+
+.zoi-button-primary {
+  background: var(--zoi-white);
+  border: 1px solid var(--zoi-white);
+  color: var(--zoi-bg);
+}
+
+.zoi-button-primary:hover {
+  background: transparent;
+  color: var(--zoi-white);
+}
+
+/* ZOI Glass Effects */
+.glass-enterprise {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+
+.glass-enterprise-hover {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.glass-enterprise-hover:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-2px);
+}
+
+/* ZOI Animations */
+@keyframes zoiFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.zoi-fade-up {
+  opacity: 0;
+  animation: zoiFadeUp 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.zoi-stagger > * {
+  opacity: 0;
+  animation: zoiFadeUp 0.8s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.zoi-stagger > *:nth-child(1) { animation-delay: 0.1s; }
+.zoi-stagger > *:nth-child(2) { animation-delay: 0.2s; }
+.zoi-stagger > *:nth-child(3) { animation-delay: 0.3s; }
+.zoi-stagger > *:nth-child(4) { animation-delay: 0.4s; }
+.zoi-stagger > *:nth-child(5) { animation-delay: 0.5s; }
+
+/* Feature Card Animations */
+.feature-card {
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  border: 1px solid transparent;
+}
+
+.feature-card:hover {
+  border-color: var(--zoi-teal);
+  transform: translateY(-4px);
+}
+
+/* ZOI Link Styles */
+.zoi-link {
+  color: var(--zoi-white);
+  text-decoration: none;
+  position: relative;
+  padding-bottom: 2px;
+  transition: color 0.3s ease;
+}
+
+.zoi-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--zoi-white);
+  transition: width 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.zoi-link:hover::after {
+  width: 100%;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--zoi-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--zoi-teal);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--zoi-teal-light);
+}
+
+/* Loading Animation */
+@keyframes zoiLoading {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.zoi-loading {
+  animation: zoiLoading 1.5s linear infinite;
+}
+
+/* Ensure content is above background */
+.main-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .glass-enterprise {
+    backdrop-filter: blur(10px);
+  }
+  
+  .feature-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .zoi-button {
+    padding: 14px 28px;
+    font-size: 0.9rem;
+  }
+}
