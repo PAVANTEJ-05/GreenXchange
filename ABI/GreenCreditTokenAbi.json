@@ -2,11 +2,6 @@
 	{
 		"inputs": [
 			{
-				"internalType": "string",
-				"name": "baseURI_",
-				"type": "string"
-			},
-			{
 				"internalType": "address",
 				"name": "initialOwner",
 				"type": "address"
@@ -162,25 +157,6 @@
 			}
 		],
 		"name": "ApprovalForAll",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "oldURI",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "newURI",
-				"type": "string"
-			}
-		],
-		"name": "BaseURIUpdated",
 		"type": "event"
 	},
 	{
@@ -914,19 +890,6 @@
 			}
 		],
 		"name": "setApprovalForAll",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "newURI",
-				"type": "string"
-			}
-		],
-		"name": "setBaseURI",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
