@@ -51,7 +51,7 @@ export default function DocumentUpload() {
       );
 
       // Wait for transaction confirmation
-      await tx.wait();
+      // await tx.wait();
 
       // Redirect after success
       router.push('/verification');

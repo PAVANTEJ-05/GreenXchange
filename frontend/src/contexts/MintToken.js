@@ -5,7 +5,7 @@ const CONTRACT_ADDRESS = "0x22967648f6d5e2DAece0dc230f6a86705be89346";
 import gctabi from "../../../ABI/GreenCreditTokenAbi"; 
 
 // ⚠️ Replace with your private key (keep this in .env.local, NEVER hardcode!)
-const PRIVATE_KEY = process.env.NEXT_PUBLIC_OWNER_PRIVATE_KEY;
+const PRIVATE_KEY = process.env.NEXT_PUBLIC_PRIVATE_KEY;
 
 export async function registerCredit(tokenId, creditType, projectTitle, location, certificateHash) {
   try {
@@ -15,7 +15,7 @@ export async function registerCredit(tokenId, creditType, projectTitle, location
     // Create provider and signer
     const provider = new ethers.providers.Web3Provider(window.ethereum);
     const signer = await provider.getSigner();
-
+    const userAddress = signer.getAddress();
     // Create contract instance
     const contract = new ethers.Contract(CONTRACT_ADDRESS, gctabi, signer);
 
@@ -35,7 +35,10 @@ export async function registerCredit(tokenId, creditType, projectTitle, location
     // Wait for confirmation
     const receipt = await tx.wait();
     console.log("✅ Transaction confirmed:", receipt);
-approveMint();
+
+  await approveMint(userAddress,tokenId,1000,1861316834);
+    console.log("✅ Aprooved Mint transaction successful")
+
     return receipt;
   } catch (error) {
     console.error("❌ Error in registerCredit:", error);
@@ -67,7 +70,7 @@ export async function approveMint(user, tokenId, amount, expiryTimestamp) {
 
     // 6️⃣ Optional: 2-minute gap before next transaction
     console.log("⏸️ Waiting for 2 minutes before next action...");
-    await new Promise((resolve) => setTimeout(resolve, 120000)); // 120000 ms = 2 min
+    await new Promise((resolve) => setTimeout(resolve, 20000)); // 20000 ms = 20 sec
 
     console.log("⏰ Done waiting!");
     return receipt;
