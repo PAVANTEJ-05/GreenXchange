@@ -1,28 +1,47 @@
-// components/onboarding/ProjectApplicationForm.js
 'use client';
 import { useState } from 'react';
-
+import { ethers } from 'ethers'; // 🆕 Added for hash generation
 
 export default function ProjectApplicationForm({ onNext }) {
   const [formData, setFormData] = useState({
     projectName: '',
     tokenId: '',
     location: '',
-    description: '',
     creditType: '',
+    certificateHash: ''
   });
 
-  const creditTypes = [
-    'Green',
-    'Carbon',
-    'Water', 
-    'Renewable'
-  ];
+  // Enum mapping 🆕
+  const creditEnumMap = {
+    Green: 0,
+    Carbon: 1,
+    Water: 2,
+    Renewable: 3
+  };
+
+  const creditTypes = ['Green', 'Carbon', 'Water', 'Renewable'];
+
+  // 🆕 Function to generate hash (50–70 bytes)
+  const generateCertificateHash = (description) => {
+    const hash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(description));
+    return hash.slice(0, 70);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log('Project Application Submitted:', formData);
-    localStorage.setItem('onboardingProject', JSON.stringify(formData));
+
+    // 🆕 Convert creditType to enum and generate hash
+    const creditEnum = creditEnumMap[formData.creditType];
+    const hash = generateCertificateHash(formData.description);
+
+    const finalData = {
+      ...formData,
+      creditType: creditEnum,
+      certificateHash: hash,
+    };
+
+    console.log('Project Application Submitted:', finalData);
+    localStorage.setItem('onboardingProject', JSON.stringify(finalData));
     if (onNext) onNext();
   };
 
@@ -62,25 +81,7 @@ export default function ProjectApplicationForm({ onNext }) {
           value={formData.tokenId}
           onChange={handleChange}
           placeholder="Enter numeric token ID"
-          
         />
-      </div>
-
-      <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-300">Project Type *</label>
-        <select
-          name="projectType"
-          required
-          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-          value={formData.projectType}
-          onChange={handleChange}
-        >
-          <option value="" className="bg-gray-800">Select Type</option>
-          <option value="solar_farm" className="bg-gray-800">Solar Farm</option>
-          <option value="wind_farm" className="bg-gray-800">Wind Farm</option>
-          <option value="hydro_plant" className="bg-gray-800">Hydro Plant</option>
-          <option value="biomass_plant" className="bg-gray-800">Biomass Plant</option>
-        </select>
       </div>
 
       <div className="space-y-2">
@@ -108,23 +109,10 @@ export default function ProjectApplicationForm({ onNext }) {
             required
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             value={formData.location}
-            on  Change={handleChange}
+            onChange={handleChange}
             placeholder="City, Country"
           />
         </div>
-
-        {/* <div className="space-y-2">
-          <label className="block text-sm font-medium text-gray-300">Capacity (MW) *</label>
-          <input
-            type="number"
-            name="capacity"
-            required
-            className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-            value={formData.capacity}
-            onChange={handleChange}
-            placeholder="e.g., 10"
-          />
-        </div> */}
       </div>
 
       <div className="space-y-2">
@@ -139,19 +127,6 @@ export default function ProjectApplicationForm({ onNext }) {
           placeholder="Describe your project..."
         />
       </div>
-
-      {/* <div className="space-y-2">
-        <label className="block text-sm font-medium text-gray-300">Expected Annual Credits *</label>
-        <input
-          type="number"
-          name="expectedCredits"
-          required
-          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
-          value={formData.expectedCredits}
-          onChange={handleChange}
-          placeholder="Estimated credits per year"
-        />
-      </div> */}
 
       <div className="pt-4">
         <button

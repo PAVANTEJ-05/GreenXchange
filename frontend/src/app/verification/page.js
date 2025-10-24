@@ -1,347 +1,166 @@
-// app/verification/page.js - WITH LOGIN SYSTEM
 'use client';
+
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import DocumentUpload from '@/components/verification/DocumentUpload';
-import VerificationWorkflow from '@/components/verification/VerificationWorkflow';
-import AuditorOnboarding from '@/components/verification/AuditorOnboarding';
-import ComplianceCheck from '@/components/verification/ComplianceCheck';
+import { fetchCreditInfo } from '@/contexts/MintToken'; // uses your exported function
 
-export default function Verification() {
-  const [activeTab, setActiveTab] = useState('workflow');
-  const [showAccessModal, setShowAccessModal] = useState(true);
-  const [showLogin, setShowLogin] = useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [loginData, setLoginData] = useState({ email: '', password: '' });
-  const [loginError, setLoginError] = useState('');
+export default function VerificationPage() {
+  const [tokenId, setTokenId] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [credit, setCredit] = useState(null);
+  const [error, setError] = useState('');
 
-  // Mock auditor credentials (in real app, this would be from backend)
-  const auditorCredentials = [
-    { email: 'auditor1@ethglobe.com', password: 'auditor123', name: 'Dr. Rajesh Sharma' },
-    { email: 'auditor2@ethglobe.com', password: 'auditor123', name: 'Prof. Anita Patel' },
-    { email: 'admin@ethglobe.com', password: 'admin123', name: 'Admin User' }
-  ];
-
-  const tabs = [
-    { id: 'workflow', label: 'Verification Queue', icon: '⚡' },
-    { id: 'upload', label: 'Documents', icon: '📄' },
-    { id: 'auditors', label: 'Auditors', icon: '👨‍💼' },
-    { id: 'compliance', label: 'Compliance', icon: '🛡️' }
-  ];
-
-  const handleAuditorAccess = () => {
-    setShowAccessModal(false);
-    setShowLogin(true);
+  // Map enum -> human label (same mapping used elsewhere)
+  const creditEnumToLabel = {
+    0: 'Green',
+    1: 'Carbon',
+    2: 'Water',
+    3: 'Renewable'
   };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    setLoginError('');
-
-    const auditor = auditorCredentials.find(
-      cred => cred.email === loginData.email && cred.password === loginData.password
-    );
-
-    if (auditor) {
-      setIsLoggedIn(true);
-      setShowLogin(false);
-      // In real app, you would set auth token here
-      localStorage.setItem('auditor', JSON.stringify(auditor));
-    } else {
-      setLoginError('Invalid email or password');
-    }
-  };
-
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setShowAccessModal(true);
-    setLoginData({ email: '', password: '' });
-    localStorage.removeItem('auditor');
-  };
-
-  // Check if already logged in
+  // Try to prefill tokenId from onboardingProject saved in localStorage
   useEffect(() => {
-    const savedAuditor = localStorage.getItem('auditor');
-    if (savedAuditor) {
-      setIsLoggedIn(true);
-      setShowAccessModal(false);
-      setShowLogin(false);
+    try {
+      const raw = localStorage.getItem('onboardingProject');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.tokenId !== undefined && parsed.tokenId !== null) {
+          setTokenId(String(parsed.tokenId));
+        }
+      }
+    } catch (e) {
+      // ignore
     }
   }, []);
 
-  // Access Warning Modal
-  if (showAccessModal) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 opacity-5 bg-gradient-to-br from-blue-500/10 to-cyan-500/10" />
-        </div>
+  const handleGetInfo = async () => {
+    setError('');
+    setCredit(null);
 
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-gray-700 p-8 max-w-md w-full relative z-10"
-        >
-          <div className="text-center mb-8">
-            <motion.div
-              animate={{ rotateY: [0, 360] }}
-              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
-              className="w-20 h-20 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/30"
-            >
-              <span className="text-3xl">🔐</span>
-            </motion.div>
-            <h1 className="text-2xl font-bold text-white mb-3">
-              Auditor Portal
-            </h1>
-            <p className="text-gray-400">
-              Secure Verification Access
-            </p>
-          </div>
+    if (tokenId === '' || isNaN(Number(tokenId))) {
+      setError('Please provide a valid numeric tokenId.');
+      return;
+    }
 
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6"
-          >
-            <div className="flex items-start space-x-3">
-              <span className="text-yellow-400 text-lg mt-0.5">⚠️</span>
-              <div>
-                <h3 className="font-semibold text-yellow-300 text-sm mb-1">
-                  Certified Auditors Only
-                </h3>
-                <p className="text-yellow-200/80 text-xs">
-                  This portal requires auditor credentials for access
-                </p>
-              </div>
-            </div>
-          </motion.div>
+    setLoading(true);
+    try {
+      // fetchCreditInfo is your exported function that returns the tuple/object
+      const info = await fetchCreditInfo(Number(tokenId));
 
-          <div className="space-y-3 mb-8">
-            {[
-              'Certified Green Credit Auditor',
-              'KYC Verified Identity', 
-              'Professional Certification'
-            ].map((req, index) => (
-              <motion.div
-                key={req}
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 + index * 0.1 }}
-                className="flex items-center space-x-3 text-sm"
-              >
-                <div className="w-6 h-6 bg-green-500/20 rounded-full flex items-center justify-center">
-                  <span className="text-green-400 text-xs">✓</span>
-                </div>
-                <span className="text-gray-300">{req}</span>
-              </motion.div>
-            ))}
-          </div>
+      // solidity tuple likely comes back as an array-like object with indices and named fields.
+      // Normalize for display:
+      // We handle both tuple-array and struct-like objects.
+      const normalized = {
+        creditType: null,
+        name: null,
+        location: null,
+        certificateHash: null,
+        exists: null,
+        verified: null,
+      };
 
-          <div className="space-y-3">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleAuditorAccess}
-              className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3.5 rounded-xl font-semibold hover:from-blue-500 hover:to-cyan-500 transition-all"
-            >
-              Continue to Login
-            </motion.button>
-            
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => window.location.href = '/'}
-              className="w-full bg-gray-700/50 text-gray-300 py-3.5 rounded-xl font-semibold hover:bg-gray-600/50 transition-all border border-gray-600/50"
-            >
-              Return to Home
-            </motion.button>
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
+      // If returned is an array-like:
+      if (info && typeof info === 'object') {
+        // prefer named properties if available
+        if ('creditType' in info || '0' in info) {
+          // several possible shapes:
+          normalized.creditType = info.creditType ?? info[0] ?? null;
+          normalized.name = info.name ?? info[1] ?? null;
+          normalized.location = info.location ?? info[2] ?? null;
+          normalized.certificateHash = info.certificateHash ?? info[3] ?? info[2] ?? null;
+          // last two are usually booleans
+          normalized.exists = info.exists ?? info[4] ?? null;
+          normalized.verified = info.verified ?? info[5] ?? null;
+        } else {
+          // fallback: try index access
+          normalized.creditType = info[0] ?? null;
+          normalized.name = info[1] ?? null;
+          normalized.location = info[2] ?? null;
+          normalized.certificateHash = info[3] ?? null;
+          normalized.exists = info[4] ?? null;
+          normalized.verified = info[5] ?? null;
+        }
+      }
 
-  // Login Form
-  if (showLogin) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center p-6">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-gray-700 p-8 max-w-md w-full"
-        >
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-blue-500/30">
-              <span className="text-2xl">🔑</span>
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Auditor Login
-            </h1>
-            <p className="text-gray-400 text-sm">
-              Enter your credentials to access the portal
-            </p>
-          </div>
+      setCredit(normalized);
+    } catch (err) {
+      console.error('fetchCreditInfo error:', err);
+      // If contract reverted with "Credit missing", show friendly message
+      const msg = err?.message || String(err);
+      if (msg.includes('Credit missing') || msg.includes('Credit ID exists') || msg.includes('not found')) {
+        setError('Credit info not found on-chain for this tokenId.');
+      } else {
+        setError('Failed to fetch credit info. See console for details.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Email Address
-              </label>
-              <input
-                type="email"
-                value={loginData.email}
-                onChange={(e) => setLoginData({...loginData, email: e.target.value})}
-                className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="auditor@ethglobe.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Password
-              </label>
-              <input
-                type="password"
-                value={loginData.password}
-                onChange={(e) => setLoginData({...loginData, password: e.target.value})}
-                className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter your password"
-                required
-              />
-            </div>
-
-            {loginError && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="bg-red-500/10 border border-red-500/20 rounded-xl p-3"
-              >
-                <p className="text-red-400 text-sm text-center">{loginError}</p>
-              </motion.div>
-            )}
-
-            {/* Demo Credentials Hint */}
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
-              <p className="text-blue-400 text-xs text-center">
-                Demo: auditor1@ethglobe.com / auditor123
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              <motion.button
-                type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3.5 rounded-xl font-semibold hover:from-blue-500 hover:to-cyan-500 transition-all"
-              >
-                Login to Portal
-              </motion.button>
-              
-              <button
-                type="button"
-                onClick={() => setShowLogin(false)}
-                className="w-full bg-gray-700/50 text-gray-300 py-3.5 rounded-xl font-semibold hover:bg-gray-600/50 transition-all border border-gray-600/50"
-              >
-                Go Back
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-    );
-  }
-
-  // Main Portal (only accessible after login)
   return (
-    <div className="min-h-screen bg-gray-900 py-8">
-      <div className="container mx-auto px-4">
-        {/* Header with Logout */}
-        <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12 relative"
+    <div className="max-w-3xl mx-auto p-6">
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Verification</h1>
+      <p className="text-sm text-gray-600 mb-6">
+        To get your credit token info, click <strong>Get Credit Info</strong>. This will fetch the current on-chain state for the token you submitted for verification.
+      </p>
+
+      <div className="mb-4 flex items-center gap-3">
+        <input
+          type="number"
+          value={tokenId}
+          onChange={(e) => setTokenId(e.target.value)}
+          placeholder="Enter Token ID"
+          className="px-3 py-2 border rounded bg-white"
+        />
+        <button
+          onClick={handleGetInfo}
+          disabled={loading}
+          className="bg-emerald-600 text-white px-4 py-2 rounded disabled:opacity-60"
         >
-          <div className="flex justify-between items-center mb-8">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => window.location.href = '/'}
-              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
-            >
-              <span>←</span>
-              <span>Back to Home</span>
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className="flex items-center space-x-2 bg-red-500/20 text-red-400 px-4 py-2 rounded-xl hover:bg-red-500/30 transition-colors border border-red-500/30"
-            >
-              <span>🚪</span>
-              <span>Logout</span>
-            </motion.button>
-          </div>
-
-          <div className="flex items-center justify-center space-x-4 mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500/20 to-cyan-500/20 rounded-2xl flex items-center justify-center border border-blue-500/30">
-              <span className="text-2xl">🔍</span>
-            </div>
-            <h1 className="text-4xl font-bold text-white">
-              Verification Portal
-            </h1>
-          </div>
-          
-          <p className="text-gray-400 text-lg max-w-2xl mx-auto mb-6">
-            Welcome back, <span className="text-blue-400 font-semibold">
-              {JSON.parse(localStorage.getItem('auditor'))?.name}
-            </span>
-          </p>
-        </motion.div>
-
-        {/* Rest of the portal content remains same */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12"
-        >
-          {/* Stats grid... */}
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-wrap gap-3 mb-12 justify-center"
-        >
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center space-x-3 px-8 py-4 rounded-2xl font-semibold transition-all ${
-                activeTab === tab.id
-                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-2xl shadow-blue-500/25'
-                  : 'bg-gray-800/50 text-gray-300 border border-gray-700/50 hover:border-blue-500/30'
-              }`}
-            >
-              <span className="text-lg">{tab.icon}</span>
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </motion.div>
-
-        <motion.div
-          key={activeTab}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800/30 backdrop-blur-xl rounded-3xl border border-gray-700/50 p-8 mb-8"
-        >
-          {activeTab === 'upload' && <DocumentUpload />}
-          {activeTab === 'workflow' && <VerificationWorkflow />}
-          {activeTab === 'auditors' && <AuditorOnboarding />}
-          {activeTab === 'compliance' && <ComplianceCheck />}
-        </motion.div>
+          {loading ? 'Loading...' : 'Get Credit Info'}
+        </button>
       </div>
+
+      {error && (
+        <div className="mb-4 text-sm text-red-600">
+          {error}
+        </div>
+      )}
+
+      {credit && (
+        <div className="bg-gray-50 border rounded p-4">
+          <div className="mb-2">
+            <strong>Credit Type:</strong>{' '}
+            {credit.creditType !== null && credit.creditType !== undefined
+              ? creditEnumToLabel[String(Number(credit.creditType))] ?? String(credit.creditType)
+              : '—'}
+          </div>
+
+          <div className="mb-2">
+            <strong>Project Name:</strong>{' '}
+            {credit.name ?? '—'}
+          </div>
+
+          <div className="mb-2">
+            <strong>Location:</strong>{' '}
+            {credit.location ?? '—'}
+          </div>
+
+          <div className="mb-2 break-all">
+            <strong>Certificate Hash:</strong>{' '}
+            {credit.certificateHash ?? '—'}
+          </div>
+
+          <div className="mb-2">
+            <strong>Exists on-chain:</strong>{' '}
+            {credit.exists === null || credit.exists === undefined ? '—' : (credit.exists ? 'Yes' : 'No')}
+          </div>
+
+          {/* <div>
+            <strong>Verified:</strong>{' '}
+            {credit.verified === null || credit.verified === undefined ? '—' : (credit.verified ? 'Yes' : 'No')}
+          </div> */}
+        </div>
+      )}
     </div>
   );
 }

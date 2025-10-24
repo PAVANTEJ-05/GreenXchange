@@ -1,4 +1,4 @@
-[
+const orderbookAbi =[
 	{
 		"inputs": [],
 		"stateMutability": "nonpayable",
@@ -1236,3 +1236,5 @@
 		"type": "function"
 	}
 ]
+
+export default orderbookAbi;

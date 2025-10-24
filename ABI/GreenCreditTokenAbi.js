@@ -1,5 +1,4 @@
-
-[
+const gctabi = [
 	{
 		"inputs": [
 			{
@@ -1030,5 +1029,6 @@
 		"stateMutability": "payable",
 		"type": "receive"
 	}
-]
+];
 
+export default gctabi
