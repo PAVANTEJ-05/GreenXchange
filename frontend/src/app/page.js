@@ -1,8 +1,9 @@
 // app/page.js - CLEAN VERSION WITH VERIFICATION
 'use client';
 import Link from 'next/link';
-
+import {useWeb3} from "../contexts/Web3Context"
 export default function Home() {
+  const { account, isConnected, balance, network, connectWallet, disconnectWallet } = useWeb3();
   const features = [
     {
       emoji: "⚡",
@@ -166,6 +167,7 @@ export default function Home() {
   return (
     <div>
       {/* Hero Section */}
+      
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto text-center">
           <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-3xl mb-8 shadow-2xl">
@@ -180,6 +182,8 @@ export default function Home() {
             The world's first blockchain-powered marketplace for verified environmental credits. 
             Transform sustainability into tradable digital assets with complete transparency.
           </p>
+
+
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
             <Link href="/marketplace" className="zoi-button-primary px-8 py-4 rounded-2xl font-semibold text-lg">

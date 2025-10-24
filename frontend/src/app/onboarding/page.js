@@ -206,7 +206,6 @@ export default function OnboardingPage() {
               </div>
             </div>
           </div>
-
           {/* Right Side - Progress Overview */}
           <div className="lg:col-span-1">
             <div className="bg-gradient-to-br from-gray-900 to-black rounded-2xl border border-gray-700 p-6">

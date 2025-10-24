@@ -1,7 +1,7 @@
 // components/web3/WalletConnect.js
 'use client';
 import { useState } from 'react';
-import { useWeb3 } from '@/contexts/Web3Context';
+import { useWeb3 } from '../../contexts/Web3Context';
 
 export default function WalletConnect() {
   const { 
@@ -10,6 +10,7 @@ export default function WalletConnect() {
     loading, 
     error, 
     network,
+    balance,
     connectWallet, 
     disconnectWallet 
   } = useWeb3();
@@ -47,14 +48,15 @@ export default function WalletConnect() {
         {/* Network Indicator */}
         <div className="hidden sm:flex items-center space-x-2 bg-green-500/20 text-green-400 px-3 py-1 rounded-full border border-green-500/30">
           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-          <span className="text-sm">{network}</span>
+          <span className="text-sm">{network.name}</span>
         </div>
 
-        {/* Account Address */}
+        {/* Account Address & Balance */}
         <div className="bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-white px-4 py-2 rounded-lg border border-emerald-500/30">
           <div className="flex items-center space-x-2">
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
             <span className="font-mono text-sm">{formatAddress(account)}</span>
+            <span className="font-mono text-sm">({parseFloat(balance).toFixed(4)} ETH)</span>
           </div>
         </div>
 
@@ -80,7 +82,7 @@ export default function WalletConnect() {
       
       {error && (
         <div className="bg-red-500/20 text-red-400 px-3 py-2 rounded border border-red-500/30 text-sm">
-          {error}
+          {error.message}
         </div>
       )}
     </div>
