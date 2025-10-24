@@ -8,9 +8,11 @@ export default function ProjectApplicationForm({ onNext }) {
     projectName: '',
     tokenId: '',
     location: '',
-    description: '',
     creditType: '',
+    certificateHash:''
   });
+
+  //TODO: cerficate hash geneartion 
 
   const creditTypes = [
     'Green',
@@ -66,7 +68,7 @@ export default function ProjectApplicationForm({ onNext }) {
         />
       </div>
 
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-300">Project Type *</label>
         <select
           name="projectType"
@@ -81,7 +83,7 @@ export default function ProjectApplicationForm({ onNext }) {
           <option value="hydro_plant" className="bg-gray-800">Hydro Plant</option>
           <option value="biomass_plant" className="bg-gray-800">Biomass Plant</option>
         </select>
-      </div>
+      </div> */}
 
       <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-300">Green Credit Type *</label>
@@ -108,7 +110,7 @@ export default function ProjectApplicationForm({ onNext }) {
             required
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             value={formData.location}
-            on  Change={handleChange}
+            onChange={handleChange}
             placeholder="City, Country"
           />
         </div>
