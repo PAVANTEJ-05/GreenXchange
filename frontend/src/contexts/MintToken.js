@@ -1,8 +1,8 @@
 import { ethers } from "ethers";
 
 
-const CONTRACT_ADDRESS = "0xYourContractAddressHere";
-import GreenCreditTokenAbi from "../../../ABI/GreenCreditTokenAbi.json"; 
+const CONTRACT_ADDRESS = "0x22967648f6d5e2DAece0dc230f6a86705be89346";
+import gctabi from "../../../ABI/GreenCreditTokenAbi"; 
 
 // ⚠️ Replace with your private key (keep this in .env.local, NEVER hardcode!)
 const PRIVATE_KEY = process.env.NEXT_PUBLIC_OWNER_PRIVATE_KEY;
@@ -17,7 +17,7 @@ export async function registerCredit(tokenId, creditType, projectTitle, location
     const signer = await provider.getSigner();
 
     // Create contract instance
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, GreenCreditTokenAbi, signer);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, gctabi, signer);
 
     // Call your smart contract function
     console.log("⏳ Sending transaction...");
@@ -35,7 +35,7 @@ export async function registerCredit(tokenId, creditType, projectTitle, location
     // Wait for confirmation
     const receipt = await tx.wait();
     console.log("✅ Transaction confirmed:", receipt);
-
+approveMint();
     return receipt;
   } catch (error) {
     console.error("❌ Error in registerCredit:", error);
@@ -53,7 +53,7 @@ export async function approveMint(user, tokenId, amount, expiryTimestamp) {
     const signer = new ethers.Wallet(PRIVATE_KEY, provider);
 
     // 3️⃣ Create contract instance
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, GreenCreditTokenAbi, signer);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, gctabi, signer);
 
     console.log("⏳ Sending approveMint transaction...");
 
@@ -87,7 +87,7 @@ export async function mintApprovedToken(tokenId, amount) {
     const signer = await provider.getSigner();
 
     // 2️⃣ Create contract instance
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, GreenCreditTokenAbi, signer);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, gctabi, signer);
 
     console.log("⏳ Sending mintApprovedToken transaction...");
 
@@ -117,12 +117,12 @@ export async function getBalanceOf(tokenId) {
     if (!window.ethereum) throw new Error("MetaMask not found");
 
     // 1️⃣ Connect to user's wallet
-    const provider = new ethers.BrowserProvider(window.ethereum);
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
     const signer = await provider.getSigner();
     const userAddress = await signer.getAddress();
 
     // 2️⃣ Create contract instance (read-only is fine)
-    const contract = new ethers.Contract(CONTRACT_ADDRESS, GreenCreditTokenAbi, provider);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, gctabi, provider);
 
     // 3️⃣ Call balanceOf
     const balance = await contract.balanceOf(userAddress, tokenId);
@@ -135,3 +135,21 @@ export async function getBalanceOf(tokenId) {
     throw error;
   }
 }
+
+export const fetchCreditInfo = async (tokenId) => {
+  try {
+    
+      const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const contract = new ethers.Contract(CONTRACT_ADDRESS, gctabi, provider);
+
+
+    // Call the function
+    const creditInfo = await contract.getCreditInfo(tokenId);
+
+    console.log('Credit Info:', creditInfo);
+    return creditInfo;
+  } catch (err) {
+    console.error('Error fetching credit info:', err);
+    throw err;
+  }
+};
