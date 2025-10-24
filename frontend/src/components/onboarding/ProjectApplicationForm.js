@@ -2,26 +2,21 @@
 'use client';
 import { useState } from 'react';
 
+
 export default function ProjectApplicationForm({ onNext }) {
   const [formData, setFormData] = useState({
     projectName: '',
-    projectType: '',
+    tokenId: '',
     location: '',
-    capacity: '',
     description: '',
     creditType: '',
-    expectedCredits: ''
   });
 
   const creditTypes = [
-    'Solar Energy',
-    'Wind Energy', 
-    'Hydroelectric',
-    'Biomass',
-    'Geothermal',
-    'Carbon Sequestration',
-    'Water Conservation',
-    'Biodiversity'
+    'Green',
+    'Carbon',
+    'Water', 
+    'Renewable'
   ];
 
   const handleSubmit = (e) => {
@@ -51,6 +46,23 @@ export default function ProjectApplicationForm({ onNext }) {
           value={formData.projectName}
           onChange={handleChange}
           placeholder="Enter project name"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-300">Token ID *</label>
+        <input
+          type="number"
+          name="tokenId"
+          required
+          min="0"
+          step="1"
+          inputMode="numeric"
+          className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+          value={formData.tokenId}
+          onChange={handleChange}
+          placeholder="Enter numeric token ID"
+          
         />
       </div>
 
@@ -96,12 +108,12 @@ export default function ProjectApplicationForm({ onNext }) {
             required
             className="w-full bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
             value={formData.location}
-            onChange={handleChange}
+            on  Change={handleChange}
             placeholder="City, Country"
           />
         </div>
 
-        <div className="space-y-2">
+        {/* <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-300">Capacity (MW) *</label>
           <input
             type="number"
@@ -112,7 +124,7 @@ export default function ProjectApplicationForm({ onNext }) {
             onChange={handleChange}
             placeholder="e.g., 10"
           />
-        </div>
+        </div> */}
       </div>
 
       <div className="space-y-2">
@@ -128,7 +140,7 @@ export default function ProjectApplicationForm({ onNext }) {
         />
       </div>
 
-      <div className="space-y-2">
+      {/* <div className="space-y-2">
         <label className="block text-sm font-medium text-gray-300">Expected Annual Credits *</label>
         <input
           type="number"
@@ -139,7 +151,7 @@ export default function ProjectApplicationForm({ onNext }) {
           onChange={handleChange}
           placeholder="Estimated credits per year"
         />
-      </div>
+      </div> */}
 
       <div className="pt-4">
         <button

@@ -8,7 +8,7 @@ export default function Navigation() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 w-full z-50 bg-primary-dark/95 backdrop-blur-md border-b border-border-color">
+    <nav className="fixed top-0 w-full z-50 bg-teal-600 -md border-b border-border-color">
       <div className="container mx-auto px-6">
         <div className="flex justify-between items-center py-4">
           {/* Professional Logo */}
@@ -59,7 +59,7 @@ export default function Navigation() {
           </div>
 
           {/* Wallet Connect - Desktop */}
-          <div className="hidden md:block">
+          <div>
             <WalletConnect />
           </div>
 
@@ -134,6 +134,10 @@ export default function Navigation() {
             </div>
           </div>
         )}
+        {/* Wallet Connect - Mobile (Always visible)*/}
+        {/* <div className="pt-4 border-t border-border-color">
+          <WalletConnect />
+        </div> */}
       </div>
     </nav>
   );

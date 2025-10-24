@@ -1,7 +1,8 @@
 // app/layout.js - CLEAN VERSION
 import './globals.css';
-import { Web3Provider } from '../components/contexts/Web3Context';
+import { Web3Provider } from '../contexts/Web3Context';
 import LayoutWrapper from '../components/LayoutWrapper';
+import Navigation from "../components/ui/Navigation"
 
 export const metadata = {
   title: 'GreenXchange - Carbon Credit Trading',
@@ -13,11 +14,13 @@ export default function RootLayout({ children }) {
     <html lang="en">
       {/* NO bg class here */}
       <body className="antialiased">
+       
         <Web3Provider>
-          <LayoutWrapper>
+          <LayoutWrapper> 
+            <Navigation/>
             {children}
           </LayoutWrapper>
-        </Web3Provider>
+       </Web3Provider>
       </body>
     </html>
   );

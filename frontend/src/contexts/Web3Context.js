@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect } from 'react';
+import { ethers } from 'ethers';
 
-// Create context with default values
 const Web3Context = createContext({
   account: '',
   provider: null,
@@ -14,6 +14,8 @@ const Web3Context = createContext({
   disconnectWallet: () => {},
   isMetaMaskInstalled: () => false,
 });
+
+let listenersAdded = false; // prevent duplicate listeners
 
 export function Web3Provider({ children }) {
   const [account, setAccount] = useState('');
@@ -29,89 +31,78 @@ export function Web3Provider({ children }) {
     return typeof window !== 'undefined' && window.ethereum;
   };
 
-  // Check for existing connection on mount
+  // Try reconnecting on page load
   useEffect(() => {
-    checkExistingConnection();
+    if (typeof window !== 'undefined' && window.ethereum) {
+      checkExistingConnection();
+    }
   }, []);
 
   const checkExistingConnection = async () => {
-    if (isMetaMaskInstalled()) {
-      try {
-        const accounts = await window.ethereum.request({
-          method: 'eth_accounts'
-        });
-        
-        if (accounts.length > 0) {
-          // We have a connected account, initialize the connection
-          await initializeWeb3(accounts[0]);
-        }
-      } catch (error) {
-        console.error('Error checking existing connection:', error);
+    if (!isMetaMaskInstalled()) return;
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts.length > 0) {
+        await initializeWeb3(accounts[0]);
       }
+    } catch (error) {
+      console.error('Error checking existing connection:', error);
     }
   };
 
   const initializeWeb3 = async (accountAddress) => {
     try {
-      // We'll use a dynamic import for ethers to avoid SSR issues
-      const { ethers } = await import('ethers');
-      
       const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
       const web3Signer = web3Provider.getSigner();
       const network = await web3Provider.getNetwork();
-      
+
       setAccount(accountAddress);
       setProvider(web3Provider);
       setSigner(web3Signer);
       setNetwork(network);
       setIsConnected(true);
 
-      // Get balance
       const balance = await web3Provider.getBalance(accountAddress);
       setBalance(ethers.utils.formatEther(balance));
 
-      // Set up event listeners
       setupEventListeners(web3Provider);
-
     } catch (error) {
       console.error('Failed to initialize Web3:', error);
     }
   };
 
-  // Connect to MetaMask
   const connectWallet = async () => {
     if (!isMetaMaskInstalled()) {
-      throw new Error('Please install MetaMask to use this dApp');
+      alert('Please install MetaMask to use this dApp');
+      return;
     }
 
     try {
       const accounts = await window.ethereum.request({
-        method: 'eth_requestAccounts'
+        method: 'eth_requestAccounts',
       });
-      
       await initializeWeb3(accounts[0]);
-
     } catch (error) {
       console.error('Failed to connect wallet:', error);
-      throw error;
     }
   };
 
   const setupEventListeners = (provider) => {
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', (accounts) => {
-        if (accounts.length === 0) {
-          disconnectWallet();
-        } else {
-          setAccount(accounts[0]);
-          initializeWeb3(accounts[0]);
-        }
-      });
+    if (listenersAdded || !window.ethereum) return;
+    listenersAdded = true;
 
-      window.ethereum.on('chainChanged', () => {
-        window.location.reload();
-      });
-    }
+    window.ethereum.on('accountsChanged', (accounts) => {
+      if (accounts.length === 0) {
+        disconnectWallet();
+      } else {
+        setAccount(accounts[0]);
+        initializeWeb3(accounts[0]);
+      }
+    });
+
+    window.ethereum.on('chainChanged', () => {
+      window.location.reload();
+    });
   };
 
   const disconnectWallet = () => {
@@ -134,7 +125,7 @@ export function Web3Provider({ children }) {
     contracts,
     connectWallet,
     disconnectWallet,
-    isMetaMaskInstalled
+    isMetaMaskInstalled,
   };
 
   return (
@@ -145,8 +136,5 @@ export function Web3Provider({ children }) {
 }
 
 export const useWeb3 = () => {
-  const context = useContext(Web3Context);
-  
-  // Don't throw error, just return the context (it has default values)
-  return context;
+  return useContext(Web3Context);
 };
