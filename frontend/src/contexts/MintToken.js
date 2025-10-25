@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 
-const CONTRACT_ADDRESS = "0x22967648f6d5e2DAece0dc230f6a86705be89346";
+const CONTRACT_ADDRESS = "0xa82fA397006c6314B0bfFCBAA06FbfbcC805b619";
 import gctabi from "../../../ABI/GreenCreditTokenAbi"; 
 
 // ⚠️ Replace with your private key (keep this in .env.local, NEVER hardcode!)
