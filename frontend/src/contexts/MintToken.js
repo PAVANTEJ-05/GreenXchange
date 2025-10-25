@@ -69,7 +69,7 @@ export async function approveMint(user, tokenId, amount, expiryTimestamp) {
     console.log("✅ Transaction confirmed:", receipt);
 
     // 6️⃣ Optional: 2-minute gap before next transaction
-    console.log("⏸️ Waiting for 2 minutes before next action...");
+    console.log("⏸️ Waiting for 20sec before next action...");
     await new Promise((resolve) => setTimeout(resolve, 20000)); // 20000 ms = 20 sec
 
     console.log("⏰ Done waiting!");
@@ -101,11 +101,6 @@ export async function mintApprovedToken(tokenId, amount) {
     // 4️⃣ Wait for confirmation
     const receipt = await tx.wait();
     console.log("✅ Transaction confirmed:", receipt);
-
-    // 5️⃣ Optional: Wait for 2 minutes (as you wanted earlier)
-    console.log("⏸️ Waiting 2 minutes before next step...");
-    await new Promise((resolve) => setTimeout(resolve, 120000)); // 2 min delay
-    console.log("⏰ 2-minute delay complete");
 
     return receipt;
   } catch (error) {
