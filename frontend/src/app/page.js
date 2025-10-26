@@ -36,10 +36,7 @@ export default function Home() {
   ];
 
   const stats = [
-    { number: "$4.1M+", label: "Total Volume" },
-    { number: "128+", label: "Active Projects" },
-    { number: "45.2K+", label: "Credits Traded" },
-    { number: "45+", label: "Countries" }
+ 
   ];
 
   const securityFeatures = [
@@ -74,7 +71,7 @@ export default function Home() {
     },
     {
       emoji: "💎",
-      title: "NFT Green Credits", 
+      title: "ERC1155 Green Credit Tokens", 
       description: "Environmental credits tokenized as unique NFTs for verifiable ownership and fractional trading.",
       benefits: ["Unique digital assets", "Provenance tracking", "Fractional ownership"]
     },
@@ -179,7 +176,7 @@ export default function Home() {
           </h1>
           
           <p className="text-xl md:text-2xl text-gray-300 mb-8 max-w-3xl mx-auto zoi-body-large">
-            The world's first blockchain-powered marketplace for verified environmental credits. 
+            The blockchain-powered marketplace for verified environmental credits. 
             Transform sustainability into tradable digital assets with complete transparency.
           </p>
 

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from "react";
 import { ethers } from "ethers";
-import { CheckCircle, Info, AlertCircle, X } from "lucide-react";
+import { CheckCircle, Info, AlertCircle, X, RefreshCw, TrendingUp, Activity, DollarSign, Shield } from "lucide-react";
 
 import {
   approveGreenCredit,
@@ -22,6 +22,15 @@ async function getReadOnlyContract() {
   return new ethers.Contract(ORDERBOOK_ADDRESS, orderbookAbi, provider);
 }
 
+// Animated Background Component
+const AnimatedBackground = () => (
+  <div className="fixed inset-0 -z-10 overflow-hidden">
+    <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900"></div>
+    <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
+    <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
+  </div>
+);
+
 // Notification Component
 const Notification = ({ type, message, onClose }) => {
   const icons = {
@@ -31,53 +40,139 @@ const Notification = ({ type, message, onClose }) => {
   };
 
   const bgColors = {
-    success: "bg-green-900/50 border-green-700",
-    info: "bg-blue-900/50 border-blue-700",
-    error: "bg-red-900/50 border-red-700"
+    success: "bg-emerald-500/10 border-emerald-500/30",
+    info: "bg-blue-500/10 border-blue-500/30",
+    error: "bg-red-500/10 border-red-500/30"
   };
 
   return (
-    <div className={`${bgColors[type]} border rounded-lg p-4 flex items-start gap-3 shadow-lg animate-slideIn`}>
+    <div className={`${bgColors[type]} border rounded-xl p-4 flex items-start gap-3 shadow-lg backdrop-blur-sm animate-slideIn`}>
       {icons[type]}
       <p className="flex-1 text-sm text-gray-100">{message}</p>
-      <button onClick={onClose} className="text-gray-400 hover:text-gray-200">
+      <button onClick={onClose} className="text-gray-400 hover:text-gray-200 transition-colors">
         <X className="w-4 h-4" />
       </button>
     </div>
   );
 };
 
-// Transaction Log Component
+// Transaction Log Component - Compact
 const TransactionLog = ({ logs }) => {
   return (
-    <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 shadow-xl max-h-64 overflow-y-auto">
-      <h4 className="text-sm font-semibold text-gray-300 mb-3">Transaction Log</h4>
-      {logs.length === 0 ? (
-        <p className="text-gray-500 text-xs">No transactions yet</p>
-      ) : (
-        <div className="space-y-2">
-          {logs.map((log, idx) => (
-            <div key={idx} className="text-xs font-mono">
+    <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-700 p-4 h-40">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-bold text-gray-100 flex items-center">
+          <Activity className="w-4 h-4 text-cyan-400 mr-2" />
+          Transaction Log
+        </h4>
+        <div className="text-xs text-gray-400">{logs.length} entries</div>
+      </div>
+      <div className="h-28 overflow-y-auto space-y-1">
+        {logs.length === 0 ? (
+          <div className="text-gray-500 text-center py-4 text-xs">
+            No transactions yet
+          </div>
+        ) : (
+          logs.slice(-8).map((log, idx) => (
+            <div key={idx} className="text-xs font-mono bg-black/30 rounded-lg p-2 border border-gray-800">
               <span className="text-gray-400">[{log.timestamp}]</span>{" "}
               <span className={`${
-                log.type === 'success' ? 'text-green-400' :
+                log.type === 'success' ? 'text-emerald-400' :
                 log.type === 'error' ? 'text-red-400' :
-                'text-blue-400'
+                'text-cyan-400'
               }`}>
                 {log.message}
               </span>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        )}
+      </div>
     </div>
   );
 };
 
+// Order Card Component - Compact
+const OrderCard = ({ order, type, onFill, loading }) => {
+  const isBuy = type === 'buy';
+  const bgColor = isBuy ? 'from-emerald-500/10 to-emerald-500/5' : 'from-red-500/10 to-red-500/5';
+  const borderColor = isBuy ? 'border-emerald-500/30' : 'border-red-500/30';
+  const buttonColor = isBuy ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700';
+
+  return (
+    <div className={`bg-gradient-to-br ${bgColor} border ${borderColor} rounded-xl p-3 transition-all duration-300 hover:scale-[1.02]`}>
+      <div className="flex justify-between items-start mb-2">
+        <div className="flex items-center space-x-2">
+          <span className="text-xs font-mono font-bold text-white">#{order.id}</span>
+          <span className={`text-xs px-2 py-1 rounded-lg ${isBuy ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'}`}>
+            {isBuy ? 'BUY' : 'SELL'}
+          </span>
+        </div>
+        <span className="text-xs text-gray-400">Token #{order.order.tokenId?.toString() || 'N/A'}</span>
+      </div>
+      
+      <div className="text-xs text-gray-400 mb-2 truncate bg-black/20 rounded p-1 px-2">
+        {order.order.maker.slice(0, 8)}...{order.order.maker.slice(-6)}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+        <div className="bg-black/20 rounded p-2">
+          <div className="text-gray-400 text-xs">Price</div>
+          <div className="text-white font-semibold">
+            {ethers.utils.formatUnits(order.order.price, 6)}
+          </div>
+        </div>
+        <div className="bg-black/20 rounded p-2">
+          <div className="text-gray-400 text-xs">Available</div>
+          <div className="text-white font-semibold">
+            {order.order.amount.sub(order.order.filled).toString()}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          min="1"
+          placeholder="Qty"
+          defaultValue="1"
+          id={`fillAmount-${type}-${order.id}`}
+          className="w-16 bg-black/30 border border-gray-600 rounded-lg px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-cyan-500"
+        />
+        <button
+          onClick={() => {
+            const inputEl = document.getElementById(`fillAmount-${type}-${order.id}`);
+            const qty = inputEl && inputEl.value ? Number(inputEl.value) : 1;
+            onFill(order.id, qty);
+          }}
+          disabled={loading}
+          className={`flex-1 ${buttonColor} disabled:bg-gray-600 text-white font-semibold py-2 px-2 rounded-lg text-xs transition-all duration-200 disabled:cursor-not-allowed`}
+        >
+          {isBuy ? 'Sell' : 'Buy'}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// PYUSD Notice Banner
+const PYUSDNotice = () => (
+  <div className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border border-blue-500/30 rounded-xl p-3 mb-4">
+    <div className="flex items-center justify-center space-x-3 text-sm">
+      <DollarSign className="w-4 h-4 text-blue-400" />
+      <Shield className="w-4 h-4 text-cyan-400" />
+      <span className="text-white font-semibold">All transactions on this marketplace are conducted in</span>
+      <span className="bg-blue-500 text-white px-3 py-1 rounded-lg font-bold text-sm">PYUSD</span>
+      <span className="text-white font-semibold">stablecoin</span>
+      <Shield className="w-4 h-4 text-cyan-400" />
+      <DollarSign className="w-4 h-4 text-blue-400" />
+    </div>
+  </div>
+);
+
 export default function MarketplaceClient() {
-  const [tokenId, setTokenId] = useState(null);
-  const [priceInput, setPriceInput] = useState(null);
-  const [amountInput, setAmountInput] = useState(null);
+  const [tokenId, setTokenId] = useState(1);
+  const [priceInput, setPriceInput] = useState("1");
+  const [amountInput, setAmountInput] = useState("1");
   const [pyusdDecimals] = useState(6);
   const [activeBuyOrders, setActiveBuyOrders] = useState([]);
   const [activeSellOrders, setActiveSellOrders] = useState([]);
@@ -96,7 +191,7 @@ export default function MarketplaceClient() {
 
   const addLog = (message, type = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
-    setTxLogs(prev => [...prev, { timestamp, message, type }].slice(-50)); // Keep last 50 logs
+    setTxLogs(prev => [...prev, { timestamp, message, type }].slice(-50));
   };
 
   const parseAmount = useCallback((val) => ethers.BigNumber.from(val), []);
@@ -122,7 +217,6 @@ export default function MarketplaceClient() {
               if (!active) return null;
 
               const order = await contract.orders(id);
-
               return { id, order, isBuy: order.isBuy };
             } catch (err) {
               console.error(`Error fetching order ${id}:`, err);
@@ -316,11 +410,11 @@ export default function MarketplaceClient() {
   }, [tokenId, loadActiveOrders]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100 p-6">
+    <div className="min-h-screen bg-black text-gray-100 py-4 pt-16 relative overflow-hidden">
+      <AnimatedBackground />
+      
       {/* Notifications Container */}
-<div className="fixed mt-12 top-4 left-1/2 -translate-x-1/2 z-50 space-y-2 w-11/12 max-w-md">
-
-
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 space-y-2 w-11/12 max-w-md">
         {notifications.map(notif => (
           <Notification
             key={notif.id}
@@ -331,284 +425,225 @@ export default function MarketplaceClient() {
         ))}
       </div>
 
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8 mt-20">
-          <h2 className="text-3xl font-bold text-green-400 mb-2">GreenXchange Marketplace</h2>
-          <p className="text-gray-400">Trade GreenXchange Available Credits on the blockchain</p>
+      <div className="max-w-7xl mx-auto px-4 relative z-10">
+        {/* Header - Compact */}
+        <div className="text-center mb-6">
+          <div className="flex items-center justify-center space-x-3 mb-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-white">GreenXchange Marketplace</h1>
+          </div>
+          <p className="text-gray-400 text-sm">Trade Green Credits on the blockchain</p>
         </div>
 
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 mb-6 shadow-xl">
-          <h3 className="text-lg font-semibold text-green-400 mb-4">Place Order</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Token ID
-              </label>
-              <input
-                type="number"
-                value={tokenId || ''}
-                onChange={(e) => handleTokenIdChange(Number(e.target.value))}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Price per Token (PYUSD)
-              </label>
-              <input
-                type="text"
-                value={priceInput || ''}
-                onChange={(e) => setPriceInput(e.target.value)}
-                placeholder="$"
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                Amount (credits)
-              </label>
-              <input
-                type="number"
-                value={amountInput || ''}
-                onChange={(e) => setAmountInput(e.target.value)}
-                className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <button
-              onClick={handlePlaceSellOrder}
-              disabled={loading}
-              className="flex-1 min-w-[200px] bg-red-600 hover:bg-red-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {loading ? "Processing..." : "Approve Credit & Place Sell Order"}
-            </button>
-            <button
-              onClick={handlePlaceBuyOrder}
-              disabled={loading}
-              className="flex-1 min-w-[200px] bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-semibold py-3 px-6 rounded-lg transition-colors"
-            >
-              {loading ? "Processing..." : "Approve PYUSD & Place Buy Order"}
-            </button>
-          </div>
-        </div>
+        {/* PYUSD Notice Banner */}
+        <PYUSDNotice />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-red-400">Sell Orders</h3>
-              <button
-                onClick={loadActiveOrders}
-                disabled={loading}
-                className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                {loading ? "Loading..." : "Refresh"}
-              </button>
-            </div>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {loading && activeSellOrders.length === 0 ? (
-                <div className="text-gray-500 text-center py-8">Loading orders...</div>
-              ) : activeSellOrders.length === 0 ? (
-                <div className="text-gray-500 text-center py-8">
-                  No active sell orders for token {tokenId}
+        {/* Main Content Grid - Optimized for single view */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+          {/* Left Column - Order Placement and History */}
+          <div className="xl:col-span-8 space-y-4">
+            {/* Place Order Card - Compact */}
+            <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-700 p-4">
+              <h3 className="text-lg font-bold text-emerald-400 mb-4 flex items-center">
+                <Activity className="w-5 h-5 mr-2" />
+                Place New Order
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Token ID
+                  </label>
+                  <input
+                    type="number"
+                    value={tokenId}
+                    onChange={(e) => handleTokenIdChange(Number(e.target.value))}
+                    className="w-full bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
+                  />
                 </div>
-              ) : (
-                activeSellOrders.map((s) => {
-                  const o = s.order;
-                  return (
-                    <div
-                      key={s.id}
-                      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:border-red-500 transition-colors"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-mono text-red-400">Order #{s.id}</span>
-                        <span className="text-xs text-gray-400">Seller</span>
-                      </div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-mono text-blue-400">
-                          Token ID: #{o.tokenId ? o.tokenId.toString() : "N/A"}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-400 mb-2 truncate">
-                        {o.maker}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
-                        <div>
-                          <span className="text-gray-400">Price per Token:</span>
-                          <span className="ml-2 text-white font-semibold">
-                            {ethers.utils.formatUnits(o.price, pyusdDecimals)} PYUSD
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Available:</span>
-                          <span className="ml-2 text-white font-semibold">
-                            {o.amount.sub(o.filled).toString()}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 mt-2">
-  <input
-    type="number"
-    min="1"
-    placeholder="Qty"
-    id={`fillAmount-sell-${s.id}`}
-    className="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-  />
-  <button
-    onClick={() => {
-      const inputEl = document.getElementById(`fillAmount-sell-${s.id}`);
-      const qty = inputEl && inputEl.value ? Number(inputEl.value) : 1;
-      handleFillOrder(s.id, qty);
-    }}
-    disabled={loading}
-    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
-  >
-    Buy Credits     <small className="text-yellow-300">min: 1</small>
-  </button>
-</div>
-
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold text-green-400">Buy Orders</h3>
-              <button
-                onClick={loadActiveOrders}
-                disabled={loading}
-                className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-              >
-                {loading ? "Loading..." : "Refresh"}
-              </button>
-            </div>
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {loading && activeBuyOrders.length === 0 ? (
-                <div className="text-gray-500 text-center py-8">Loading orders...</div>
-              ) : activeBuyOrders.length === 0 ? (
-                <div className="text-gray-500 text-center py-8">
-                  No active buy orders for token {tokenId}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Price (PYUSD)
+                  </label>
+                  <input
+                    type="text"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value)}
+                    className="w-full bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
+                  />
                 </div>
-              ) : (
-                activeBuyOrders.map((b) => {
-                  const o = b.order;
-                  return (
-                    <div
-                      key={b.id}
-                      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:border-green-500 transition-colors"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-mono text-green-400">Order #{b.id}</span>
-                        <span className="text-xs text-gray-400">Buyer</span>
-                      </div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className="text-sm font-mono text-blue-400">
-                          Token ID: #{o.tokenId ? o.tokenId.toString() : "N/A"}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-400 mb-2 truncate">
-                        {o.maker}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
-                        <div>
-                          <span className="text-gray-400">Price per Token :</span>
-                          <span className="ml-2 text-white font-semibold">
-                            {ethers.utils.formatUnits(o.price, pyusdDecimals)} PYUSD
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-gray-400">Available:</span>
-                          <span className="ml-2 text-white font-semibold">
-                            {o.amount.sub(o.filled).toString()}
-                          </span>
-                        </div>
-                      </div>
-                   <div className="flex items-center gap-2 mt-2">
-  <input
-    type="number"
-    min="1"
-    placeholder="Qty"
-    id={`fillAmount-buy-${b.id}`}
-    className="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-  />
-  <button
-    onClick={() => {
-      const inputEl = document.getElementById(`fillAmount-buy-${b.id}`);
-      const qty = inputEl && inputEl.value ? Number(inputEl.value) : 1;
-      handleFillOrder(b.id, qty);
-    }}
-    disabled={loading}
-    className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
-  >
-    Sell Credits <small className="text-yellow-400">min: 1</small>
-  </button>
-</div>
-
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-semibold text-blue-400">Order History</h3>
-            <button
-              onClick={loadCompletedOrders}
-              disabled={loading}
-              className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm transition-colors"
-            >
-              Load History
-            </button>
-          </div>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {completedOrders.length === 0 && (
-              <div className="text-gray-500 text-center py-8">
-                No completed orders loaded
-              </div>
-            )}
-            {completedOrders.map((c) => (
-              <div
-                key={c.id}
-                className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:border-gray-500 transition-colors"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-mono text-blue-400">#{c.id}</span>
-                    <span className={`text-xs px-2 py-1 rounded ${c.order.isBuy ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
-                      {c.order.isBuy ? 'BUY' : 'SELL'}
-                    </span>
-                    <div className="text-sm text-blue-400">
-                      Token ID: #{c.order.tokenId ? c.order.tokenId.toString() : "N/A"}
-                    </div>
-                  </div>
-                  <div className="text-sm">
-                    <span className="text-gray-400">Price:</span>
-                    <span className="ml-2 text-white font-semibold">
-                      {ethers.utils.formatUnits(c.order.price, pyusdDecimals)} PYUSD
-                    </span>
-                    <span className="ml-4 text-gray-400">Filled:</span>
-                    <span className="ml-2 text-white">
-                      {c.order.filled.toString()}/{c.order.amount.toString()}
-                    </span>
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Amount
+                  </label>
+                  <input
+                    type="number"
+                    value={amountInput}
+                    onChange={(e) => setAmountInput(e.target.value)}
+                    className="w-full bg-black/30 border border-gray-600 rounded-lg px-3 py-2 text-white focus:outline-none focus:ring-1 focus:ring-emerald-500 text-sm"
+                  />
                 </div>
-                <div className="text-xs text-gray-500 mt-2 truncate">
-                  {c.order.maker}
+                <div className="flex space-x-2 items-end">
+                  <button
+                    onClick={handlePlaceSellOrder}
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-2 px-3 rounded-lg transition-all duration-300 disabled:cursor-not-allowed text-sm"
+                  >
+                    {loading ? '...' : 'Sell'}
+                  </button>
+                  <button
+                    onClick={handlePlaceBuyOrder}
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-emerald-600 to-cyan-700 hover:from-emerald-700 hover:to-cyan-800 disabled:from-gray-600 disabled:to-gray-700 text-white font-bold py-2 px-3 rounded-lg transition-all duration-300 disabled:cursor-not-allowed text-sm"
+                  >
+                    {loading ? '...' : 'Buy'}
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        {/* Transaction Log */}
-        <div className="mb-6 mt-3">
-          <TransactionLog logs={txLogs} />
+            {/* Orders Grid - Compact */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Sell Orders */}
+              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-700 p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-md font-bold text-red-400 flex items-center">
+                    Sell Orders
+                    <span className="ml-2 text-xs bg-red-500/20 text-red-300 rounded-full px-2 py-1">
+                      {activeSellOrders.length}
+                    </span>
+                  </h3>
+                  <button
+                    onClick={loadActiveOrders}
+                    disabled={loading}
+                    className="bg-black/30 hover:bg-black/50 disabled:bg-gray-600 text-white p-2 rounded-lg text-xs transition-all duration-200 disabled:cursor-not-allowed border border-gray-600"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                  {loading && activeSellOrders.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4 text-xs">
+                      Loading...
+                    </div>
+                  ) : activeSellOrders.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4 text-xs bg-black/20 rounded border border-gray-800">
+                      No sell orders
+                    </div>
+                  ) : (
+                    activeSellOrders.slice(0, 4).map((s) => (
+                      <OrderCard
+                        key={s.id}
+                        order={s}
+                        type="sell"
+                        onFill={handleFillOrder}
+                        loading={loading}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Buy Orders */}
+              <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-700 p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-md font-bold text-emerald-400 flex items-center">
+                    Buy Orders
+                    <span className="ml-2 text-xs bg-emerald-500/20 text-emerald-300 rounded-full px-2 py-1">
+                      {activeBuyOrders.length}
+                    </span>
+                  </h3>
+                  <button
+                    onClick={loadActiveOrders}
+                    disabled={loading}
+                    className="bg-black/30 hover:bg-black/50 disabled:bg-gray-600 text-white p-2 rounded-lg text-xs transition-all duration-200 disabled:cursor-not-allowed border border-gray-600"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto">
+                  {loading && activeBuyOrders.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4 text-xs">
+                      Loading...
+                    </div>
+                  ) : activeBuyOrders.length === 0 ? (
+                    <div className="text-gray-500 text-center py-4 text-xs bg-black/20 rounded border border-gray-800">
+                      No buy orders
+                    </div>
+                  ) : (
+                    activeBuyOrders.slice(0, 4).map((b) => (
+                      <OrderCard
+                        key={b.id}
+                        order={b}
+                        type="buy"
+                        onFill={handleFillOrder}
+                        loading={loading}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Transaction Log - Compact */}
+            <div className="xl:col-span-4">
+              <TransactionLog logs={txLogs} />
+            </div>
+          </div>
+
+          {/* Right Column - Order History */}
+          <div className="xl:col-span-4">
+            <div className="bg-gradient-to-br from-gray-900 to-black rounded-xl border border-gray-700 p-4 h-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-md font-bold text-cyan-400 flex items-center">
+                  Order History
+                  <span className="ml-2 text-xs bg-cyan-500/20 text-cyan-300 rounded-full px-2 py-1">
+                    {completedOrders.length}
+                  </span>
+                </h3>
+                <button
+                  onClick={loadCompletedOrders}
+                  disabled={loading}
+                  className="bg-black/30 hover:bg-black/50 disabled:bg-gray-600 text-white p-2 rounded-lg text-xs transition-all duration-200 disabled:cursor-not-allowed border border-gray-600"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {completedOrders.length === 0 ? (
+                  <div className="text-gray-500 text-center py-8 text-xs bg-black/20 rounded border border-gray-800">
+                    No completed orders
+                  </div>
+                ) : (
+                  completedOrders.slice(0, 6).map((c) => (
+                    <div
+                      key={c.id}
+                      className="bg-black/20 border border-gray-700 rounded-lg p-3 text-xs"
+                    >
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-mono text-cyan-400">#{c.id}</span>
+                        <span className={`px-2 py-1 rounded text-xs ${
+                          c.order.isBuy 
+                            ? 'bg-emerald-500/20 text-emerald-300' 
+                            : 'bg-red-500/20 text-red-300'
+                        }`}>
+                          {c.order.isBuy ? 'BUY' : 'SELL'}
+                        </span>
+                      </div>
+                      <div className="text-gray-400 mb-1">
+                        Token #{c.order.tokenId?.toString() || 'N/A'}
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span>{ethers.utils.formatUnits(c.order.price, 6)} PYUSD</span>
+                        <span>{c.order.filled.toString()}/{c.order.amount.toString()}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -626,7 +661,7 @@ export default function MarketplaceClient() {
         .animate-slideIn {
           animation: slideIn 0.3s ease-out;
         }
-      `}</style>
+      `}</style>    
     </div>
   );
-}
+} 
