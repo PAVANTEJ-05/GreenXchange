@@ -122,7 +122,6 @@ export default function MarketplaceClient() {
               if (!active) return null;
 
               const order = await contract.orders(id);
-              // if (order.tokenId.toNumber() !== tokenId) return null; //LEAVE THIS LINE DO NOT CHANGE THIS LINE
 
               return { id, order, isBuy: order.isBuy };
             } catch (err) {
@@ -319,7 +318,7 @@ export default function MarketplaceClient() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-gray-100 p-6">
       {/* Notifications Container */}
-<div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 space-y-2 w-11/12 max-w-md">
+<div className="fixed mt-12 top-4 left-1/2 -translate-x-1/2 z-50 space-y-2 w-11/12 max-w-md">
 
 
         {notifications.map(notif => (
@@ -434,7 +433,7 @@ export default function MarketplaceClient() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
                         <div>
-                          <span className="text-gray-400">Price:</span>
+                          <span className="text-gray-400">Price per Token:</span>
                           <span className="ml-2 text-white font-semibold">
                             {ethers.utils.formatUnits(o.price, pyusdDecimals)} PYUSD
                           </span>
@@ -446,13 +445,27 @@ export default function MarketplaceClient() {
                           </span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleFillOrder(s.id, 1)}
-                        disabled={loading}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
-                      >
-                        Buy 1 Credit
-                      </button>
+                      <div className="flex items-center gap-2 mt-2">
+  <input
+    type="number"
+    min="1"
+    placeholder="Qty"
+    id={`fillAmount-sell-${s.id}`}
+    className="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+  />
+  <button
+    onClick={() => {
+      const inputEl = document.getElementById(`fillAmount-sell-${s.id}`);
+      const qty = inputEl && inputEl.value ? Number(inputEl.value) : 1;
+      handleFillOrder(s.id, qty);
+    }}
+    disabled={loading}
+    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+  >
+    Buy Credits     <small className="text-yellow-300">min: 1</small>
+  </button>
+</div>
+
                     </div>
                   );
                 })
@@ -500,7 +513,7 @@ export default function MarketplaceClient() {
                       </div>
                       <div className="grid grid-cols-2 gap-2 mb-3 text-sm">
                         <div>
-                          <span className="text-gray-400">Price:</span>
+                          <span className="text-gray-400">Price per Token :</span>
                           <span className="ml-2 text-white font-semibold">
                             {ethers.utils.formatUnits(o.price, pyusdDecimals)} PYUSD
                           </span>
@@ -512,13 +525,27 @@ export default function MarketplaceClient() {
                           </span>
                         </div>
                       </div>
-                      <button
-                        onClick={() => handleFillOrder(b.id, 1)}
-                        disabled={loading}
-                        className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
-                      >
-                        Sell 1 Credit
-                      </button>
+                   <div className="flex items-center gap-2 mt-2">
+  <input
+    type="number"
+    min="1"
+    placeholder="Qty"
+    id={`fillAmount-buy-${b.id}`}
+    className="w-20 bg-gray-600 border border-gray-500 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+  />
+  <button
+    onClick={() => {
+      const inputEl = document.getElementById(`fillAmount-buy-${b.id}`);
+      const qty = inputEl && inputEl.value ? Number(inputEl.value) : 1;
+      handleFillOrder(b.id, qty);
+    }}
+    disabled={loading}
+    className="flex-1 bg-red-600 hover:bg-red-700 disabled:bg-gray-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors"
+  >
+    Sell Credits <small className="text-yellow-400">min: 1</small>
+  </button>
+</div>
+
                     </div>
                   );
                 })
