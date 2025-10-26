@@ -128,7 +128,7 @@ export default function GreenCreditsPage() {
   };
 
   return (
-    <div className=" mt-20 min-h-screen bg-gradient-to-br from-[#050F19] via-[#0A1A2F] to-[#0F2A47] overflow-hidden relative flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#050F19] via-[#0A1A2F] to-[#0F2A47] overflow-hidden relative flex items-center justify-center p-4">
       {/* Animated Background */}
       <div className="absolute inset-0 overflow-hidden">
         <motion.div
