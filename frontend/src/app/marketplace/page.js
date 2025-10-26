@@ -353,12 +353,13 @@ export default function MarketplaceClient() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">
-                Price (PYUSD)
+                Price per Token (PYUSD)
               </label>
               <input
                 type="text"
                 value={priceInput || ''}
                 onChange={(e) => setPriceInput(e.target.value)}
+                placeholder="$"
                 className="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>

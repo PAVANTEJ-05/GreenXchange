@@ -69,8 +69,8 @@ export async function approveMint(user, tokenId, amount, expiryTimestamp) {
     console.log("✅ Transaction confirmed:", receipt);
 
     // 6️⃣ Optional: 2-minute gap before next transaction
-    console.log("⏸️ Waiting for 20sec before next action...");
-    await new Promise((resolve) => setTimeout(resolve, 20000)); // 20000 ms = 20 sec
+    console.log("⏸️ Waiting for 5 sec before next action...");
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // 5000 ms = 5 sec
 
     console.log("⏰ Done waiting!");
     return receipt;
