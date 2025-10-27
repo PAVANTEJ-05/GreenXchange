@@ -64,20 +64,21 @@ export default function DocumentUpload() {
   const { uploadedRequired, totalRequired } = getUploadStatus();
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-lg shadow-lg">
-      {/* rest of your UI unchanged */}
-      <div className="mt-6 flex justify-between items-center">
-        <button className="bg-gray-500 text-white py-2 px-6 rounded-md hover:bg-gray-600">
-          Save Draft
-        </button>
-        <button 
-          className="bg-green-600 text-white py-2 px-6 rounded-md hover:bg-green-700 disabled:bg-gray-300"
-          disabled={uploadedRequired < totalRequired}
-          onClick={regToken}
-        >
-          Submit for Verification
-        </button>
-      </div>
-    </div>
+    <div className="max-w-4xl mx-auto p-8 bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-xl border border-gray-100">
+  {/* rest of your UI unchanged */}
+  <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-gray-200">
+    <button className="w-full sm:w-auto bg-white text-gray-700 py-3 px-8 rounded-lg border-2 border-gray-300 hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium shadow-sm">
+      Save Draft
+    </button>
+    <button 
+      className="w-full sm:w-auto bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 px-8 rounded-lg hover:from-green-700 hover:to-emerald-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-md hover:shadow-lg disabled:shadow-none"
+      disabled={uploadedRequired < totalRequired}
+      onClick={regToken}
+    >
+      Submit for Verification
+    </button>
+  </div>
+</div>
+
   );
 }

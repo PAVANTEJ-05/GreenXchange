@@ -25,7 +25,7 @@ export default function OnboardingPage() {
   const steps = [
     { id: 1, name: 'Project', icon: '🏭', title: 'Project Registration', subtitle: 'Register your green energy project details' },
     { id: 2, name: 'KYC', icon: '👤', title: 'Identity Verification', subtitle: 'Complete secure identity verification' },
-    { id: 3, name: 'Documents', icon: '📁', title: 'Project Documents', subtitle: 'Upload required project documentation' },
+    { id: 3, name: 'Documents', icon: '📁', title: 'Upload to Verify', subtitle: 'Upload required project documentation' },
     { id: 4, name: 'Auditor', icon: '🔍', title: 'Verification Partner', subtitle: 'Choose your audit partner' }
   ];
 

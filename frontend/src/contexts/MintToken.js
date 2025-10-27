@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 
-const CONTRACT_ADDRESS = "0x22967648f6d5e2DAece0dc230f6a86705be89346";
+const CONTRACT_ADDRESS = "0xa82fA397006c6314B0bfFCBAA06FbfbcC805b619";
 import gctabi from "../../../ABI/GreenCreditTokenAbi"; 
 
 // ⚠️ Replace with your private key (keep this in .env.local, NEVER hardcode!)
@@ -69,8 +69,8 @@ export async function approveMint(user, tokenId, amount, expiryTimestamp) {
     console.log("✅ Transaction confirmed:", receipt);
 
     // 6️⃣ Optional: 2-minute gap before next transaction
-    console.log("⏸️ Waiting for 2 minutes before next action...");
-    await new Promise((resolve) => setTimeout(resolve, 20000)); // 20000 ms = 20 sec
+    console.log("⏸️ Waiting for 5 sec before next action...");
+    await new Promise((resolve) => setTimeout(resolve, 5000)); // 5000 ms = 5 sec
 
     console.log("⏰ Done waiting!");
     return receipt;
@@ -101,11 +101,6 @@ export async function mintApprovedToken(tokenId, amount) {
     // 4️⃣ Wait for confirmation
     const receipt = await tx.wait();
     console.log("✅ Transaction confirmed:", receipt);
-
-    // 5️⃣ Optional: Wait for 2 minutes (as you wanted earlier)
-    console.log("⏸️ Waiting 2 minutes before next step...");
-    await new Promise((resolve) => setTimeout(resolve, 120000)); // 2 min delay
-    console.log("⏰ 2-minute delay complete");
 
     return receipt;
   } catch (error) {
