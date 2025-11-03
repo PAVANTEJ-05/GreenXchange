@@ -26,12 +26,13 @@ export function Web3Provider({ children }) {
   const [balance, setBalance] = useState('0');
   const [contracts, setContracts] = useState({});
 
-  // Check if MetaMask is installed
+  const SEPOLIA_CHAIN_ID = '0xaa36a7'; // hex
+  const SEPOLIA_CHAIN_DEC = 11155111;  // decimal
+
   const isMetaMaskInstalled = () => {
     return typeof window !== 'undefined' && window.ethereum;
   };
 
-  // Try reconnecting on page load
   useEffect(() => {
     if (typeof window !== 'undefined' && window.ethereum) {
       checkExistingConnection();
@@ -50,11 +51,53 @@ export function Web3Provider({ children }) {
     }
   };
 
+  const ensureSepoliaNetwork = async () => {
+    const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+    if (chainId !== SEPOLIA_CHAIN_ID) {
+      try {
+        await window.ethereum.request({
+          method: 'wallet_switchEthereumChain',
+          params: [{ chainId: SEPOLIA_CHAIN_ID }],
+        });
+        // Wait a moment for network change to apply
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      } catch (error) {
+        // If Sepolia is not added yet
+        if (error.code === 4902) {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: SEPOLIA_CHAIN_ID,
+                chainName: 'Sepolia Test Network',
+                nativeCurrency: {
+                  name: 'SepoliaETH',
+                  symbol: 'ETH',
+                  decimals: 18,
+                },
+                rpcUrls: ['https://sepolia.infura.io/v3/YOUR_INFURA_PROJECT_ID'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io'],
+              },
+            ],
+          });
+        } else {
+          throw new Error('Please switch to the Sepolia network in MetaMask.');
+        }
+      }
+    }
+  };
+
   const initializeWeb3 = async (accountAddress) => {
     try {
+      await ensureSepoliaNetwork(); // ✅ enforce Sepolia before proceeding
+
       const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
       const web3Signer = web3Provider.getSigner();
       const network = await web3Provider.getNetwork();
+
+      if (network.chainId !== SEPOLIA_CHAIN_DEC) {
+        throw new Error('Please switch to the Sepolia testnet in MetaMask.');
+      }
 
       setAccount(accountAddress);
       setProvider(web3Provider);
